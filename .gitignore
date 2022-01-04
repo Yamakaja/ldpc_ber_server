@@ -1,0 +1,7 @@
+# Vim
+*~
+*swp
+
+# Build files
+build
+__pycache__
