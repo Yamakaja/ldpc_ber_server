@@ -1,0 +1,14 @@
+{
+    "name": "Test Worker",
+    "ip_address": "0.0.0.0",
+    "port": 8230,
+    "ber_tester": [
+        "ldpc_ber_tester_0",
+        "ldpc_ber_tester_1",
+        "ldpc_ber_tester_2",
+        "ldpc_ber_tester_3",
+        "ldpc_ber_tester_4",
+        "ldpc_ber_tester_5"
+    ],
+    "sdfec": [0, 1, 2, 3, 4, 5]
+}
