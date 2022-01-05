@@ -12,21 +12,21 @@
 #include <openssl/md5.h>
 
 ldpc_code::ldpc_code() {
-    m_ldpc_params.sc_table = nullptr;
-    m_ldpc_params.la_table = nullptr;
-    m_ldpc_params.qc_table = nullptr;
+    m_ldpc_params.sc_table = 0;
+    m_ldpc_params.la_table = 0;
+    m_ldpc_params.qc_table = 0;
 }
 
 ldpc_code::~ldpc_code() {
-    std::free(m_ldpc_params.sc_table);
-    std::free(m_ldpc_params.la_table);
-    std::free(m_ldpc_params.qc_table);
+    std::free(reinterpret_cast<void *>(m_ldpc_params.sc_table));
+    std::free(reinterpret_cast<void *>(m_ldpc_params.la_table));
+    std::free(reinterpret_cast<void *>(m_ldpc_params.qc_table));
 }
 
 void ldpc_code::prepare() {
-    std::free(m_ldpc_params.sc_table);
-    std::free(m_ldpc_params.la_table);
-    std::free(m_ldpc_params.qc_table);
+    std::free(reinterpret_cast<void *>(m_ldpc_params.sc_table));
+    std::free(reinterpret_cast<void *>(m_ldpc_params.la_table));
+    std::free(reinterpret_cast<void *>(m_ldpc_params.qc_table));
 
     m_ldpc_code_params.nlayers = m_la_table.size();
     m_ldpc_code_params.nqc = m_qc_table.size();
@@ -138,7 +138,12 @@ sdfec::sdfec(int id, bool in_order) :
 
     m_fd = ret;
 
-	ret = set_order_xsdfec(m_fd, in_order ? XSDFEC_MAINTAIN_ORDER : XSDFEC_OUT_OF_ORDER);
+    ret = stop_xsdfec(m_fd);
+    if (ret)
+        throw std::runtime_error(boost::str(boost::format("Error: stop_xsdfec(): %s")
+                    % std::strerror(ret)));
+
+    ret = set_order_xsdfec(m_fd, in_order ? XSDFEC_MAINTAIN_ORDER : XSDFEC_OUT_OF_ORDER);
     if (ret)
         throw std::runtime_error(boost::str(boost::format("Error: set_order_xsdfec(): %s")
                     % std::strerror(ret)));

@@ -480,6 +480,7 @@ int prepare_ldpc_code(struct xsdfec_user_ldpc_code_params *user_params,
 	unsigned int itr, ret;
 	int len;
 	size_t psize = getpagesize();
+	uint32_t *ptr;
 
 	if (!user_params || !user_offsets || !ldpc_params) {
 		fprintf(stderr, "%s : Null input argument, error-%s\n",
@@ -521,15 +522,17 @@ int prepare_ldpc_code(struct xsdfec_user_ldpc_code_params *user_params,
 	}
 	/* Allocate a memory pages for SC table */
 	len = LDPC_TABLE_DATA_SIZE * get_sc_table_size(user_params);
-	if (posix_memalign((void **)&ldpc_params->sc_table, psize, len)) {
+	if (posix_memalign((void **)&ptr, psize, len)) {
 		ret = -EINVAL;
 		goto error2;
 	}
 
 	for (itr = 0; itr < (unsigned int)get_sc_table_size(user_params);
 	     itr++) {
-		ldpc_params->sc_table[itr] = user_params->sc_table[itr];
+		ptr[itr] = user_params->sc_table[itr];
 	}
+
+	ldpc_params->sc_table = 0xFFFFFFFF & ((uint64_t) ptr);
 
 	/* Prepare LA Table */
 	if (LDPC_TABLE_DATA_SIZE * user_params->nlayers > XSDFEC_LA_TABLE_DEPTH) {
@@ -541,14 +544,16 @@ int prepare_ldpc_code(struct xsdfec_user_ldpc_code_params *user_params,
 	}
 	/* Allocate a memory pages for LA table */
 	len = LDPC_TABLE_DATA_SIZE * user_params->nlayers;
-	if (posix_memalign((void **)&ldpc_params->la_table, psize, len)) {
+	if (posix_memalign((void **)&ptr, psize, len)) {
 		ret = -EINVAL;
 		goto error2;
 	}
 
 	for (itr = 0; itr < user_params->nlayers; itr++) {
-		ldpc_params->la_table[itr] = user_params->la_table[itr];
+		ptr[itr] = user_params->la_table[itr];
 	}
+
+	ldpc_params->la_table = 0xFFFFFFFFULL & ((uint64_t) ptr);
 
 	/* Prepare QC Table */
 	if (LDPC_TABLE_DATA_SIZE * user_params->nqc > XSDFEC_QC_TABLE_DEPTH) {
@@ -560,14 +565,16 @@ int prepare_ldpc_code(struct xsdfec_user_ldpc_code_params *user_params,
 	}
 	/* Allocate a memory for QC table */
 	len = LDPC_TABLE_DATA_SIZE * user_params->nqc;
-	if (posix_memalign((void **)&ldpc_params->qc_table, psize, len)) {
+	if (posix_memalign((void **)&ptr, psize, len)) {
 		ret = -EINVAL;
 		goto error2;
 	}
 
 	for (itr = 0; itr < user_params->nqc; itr++) {
-		ldpc_params->qc_table[itr] = user_params->qc_table[itr];
+		ptr[itr] = user_params->qc_table[itr];
 	}
+
+	ldpc_params->qc_table = 0xFFFFFFFFULL & ((uint64_t) ptr);
 
 	ldpc_params->code_id = code_id;
 	return 0;

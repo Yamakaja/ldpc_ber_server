@@ -183,9 +183,10 @@ struct xsdfec_ldpc_params {
 	__u32 sc_off;
 	__u32 la_off;
 	__u32 qc_off;
-	__u32 *sc_table;
-	__u32 *la_table;
-	__u32 *qc_table;
+	__u32 __reserved;
+	__u64 sc_table;
+	__u64 la_table;
+	__u64 qc_table;
 	__u16 code_id;
 };
 
