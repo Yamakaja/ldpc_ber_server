@@ -41,7 +41,7 @@ class Worker:
         self.sdfecs = [sdfec.sdfec(i, True) for i in config["sdfec"]]
         self.ber_testers = [LDPCBERTester(p) for p in config["ber_tester"]]
 
-        self._running = True
+        self.running = True
 
         self._tasks = Queue()
         self.results = {}
@@ -164,15 +164,15 @@ class Worker:
         ret["sdfecs"] = [{
                 "id": fec.id,
                 "active": fec.active,
-                "state": fec.state.name,
+                "state": fec.state,
                 "bypass": fec.bypass
-            } for fec in self.fecs]
+            } for fec in self.sdfecs]
 
         ret["ber_testers"] = [{
                 "id": ber.core_id,
                 "version": ber.version,
                 "scratch": ber.scratch,
-                "enabled": ber.enabled,
+                "enable": ber.enable,
                 "snr": ber.snr,
                 "snr_scale": ber.snr_scale,
                 "n": ber.n,

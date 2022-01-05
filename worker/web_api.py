@@ -5,6 +5,7 @@ from web_utils import *
 from worker import Worker
 
 app = Flask(__name__)
+worker = None
 
 @app.route("/api/codes", methods=['GET'])
 def get_codes():
@@ -15,5 +16,6 @@ def get_status():
     return jsonify(worker.status)
 
 def run(config, debug):
+    global worker
     worker = Worker(config, debug)
     app.run(debug=debug)

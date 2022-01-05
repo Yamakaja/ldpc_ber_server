@@ -2,7 +2,7 @@
 
 import json
 import sdfec
-from worker import TaskResult
+from worker import TaskResult,SimulationTask
 
 from flask import Response
 
@@ -12,6 +12,8 @@ class SDFECJsonEncoder(json.JSONEncoder):
             return o.dict
         if type(o) in [TaskResult,SimulationTask]:
             return o.__dict__
+        if type(o) in [sdfec.xsdfec_state]:
+            return repr(o)
         return json.JSONEncoder.default(self, o)
 
 def jsonify(o, code=200):
