@@ -156,6 +156,9 @@ class Worker:
         return [int(x) for x in v.strip().split(" ") if len(x) > 0]
 
     def add_code(self, codedef):
+        if not isinstance(codedef, dict) or "dec_OK" not in codedef or not codedef.dec_OK:
+            raise RuntimeError("Attempted to register code which cannot be decoded!")
+
         code = sdfec.ldpc_code()
 
         code.dec_OK = codedef.dec_OK
@@ -179,6 +182,7 @@ class Worker:
         code.qc_table = _str_to_array(codedef.qc_table)
 
         self.codes[code.hash] = code
+
 
         return code.hash
 
@@ -214,10 +218,4 @@ class Worker:
             } for ber in self.ber_testers]
 
         return ret
-
-    def add_code(self, code: sdfec.ldpc_code):
-        if not code.dec_OK:
-            raise RuntimeError("Attempted to register code which cannot be decoded!")
-
-        self.codes[code.hash] = code
 
