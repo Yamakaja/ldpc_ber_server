@@ -158,7 +158,7 @@ std::string sdfec::to_json() {
     return R"JSON({"status": "not implemented!"})JSON";
 }
 
-void sdfec::set_ldpc_code(const ldpc_code& code) {
+void sdfec::set_ldpc_code(ldpc_code& code) {
     if (!code.get_dec_ok())
         throw std::runtime_error("Error: This code cannot be used for decode operations!");
 
