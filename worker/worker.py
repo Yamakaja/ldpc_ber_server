@@ -152,12 +152,13 @@ class Worker:
         current_ber = np.sum(current_ber[:,0]) / (code.k * np.sum(current_ber[:,1]))
         return current_ber
 
-    def _str_to_array(v):
-        return [int(x) for x in v.strip().split(" ") if len(x) > 0]
 
     def add_code(self, codedef):
         if not isinstance(codedef, dict) or "dec_OK" not in codedef or not codedef["dec_OK"]:
             raise RuntimeError("Attempted to register code which cannot be decoded!")
+
+        def _str_to_array(v):
+            return [int(x) for x in v.strip().split(" ") if len(x) > 0]
 
         code = sdfec.ldpc_code()
 
