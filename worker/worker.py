@@ -32,7 +32,7 @@ class TaskResult:
         self.snrs = snrs
         self.bers = bers
 
-class CoreWorker:
+class Worker:
 
     def __init__(self, config, debug):
         self.config = config
