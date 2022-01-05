@@ -156,30 +156,30 @@ class Worker:
         return [int(x) for x in v.strip().split(" ") if len(x) > 0]
 
     def add_code(self, codedef):
-        if not isinstance(codedef, dict) or "dec_OK" not in codedef or not codedef.dec_OK:
+        if not isinstance(codedef, dict) or "dec_OK" not in codedef or not codedef["dec_OK"]:
             raise RuntimeError("Attempted to register code which cannot be decoded!")
 
         code = sdfec.ldpc_code()
 
-        code.dec_OK = codedef.dec_OK
-        code.enc_OK = codedef.enc_OK
+        code.dec_OK = codedef["dec_OK"]
+        code.enc_OK = codedef["enc_OK"]
 
-        code.n = codedef.n
-        code.k = codedef.k
-        code.p = codedef.p
-        code.nlayers = codedef.nlayers
-        code.nqc = codedef.nqc
-        code.nmqc = codedef.nmqc
-        code.nm = codedef.nm
-        code.norm_type = codedef.norm_type
-        code.no_packing = codedef.no_packing
-        code.special_qc = codedef.special_qc
-        code.no_final_parity = codedef.no_final_parity
-        code.max_schedule = codedef.max_schedule
+        code.n = codedef["n"]
+        code.k = codedef["k"]
+        code.p = codedef["p"]
+        code.nlayers = codedef["nlayers"]
+        code.nqc = codedef["nqc"]
+        code.nmqc = codedef["nmqc"]
+        code.nm = codedef["nm"]
+        code.norm_type = codedef["norm_type"]
+        code.no_packing = codedef["no_packing"]
+        code.special_qc = codedef["special_qc"]
+        code.no_final_parity = codedef["no_final_parity"]
+        code.max_schedule = codedef["max_schedule"]
 
-        code.sc_table = _str_to_array(codedef.sc_table)
-        code.la_table = _str_to_array(codedef.la_table)
-        code.qc_table = _str_to_array(codedef.qc_table)
+        code.sc_table = _str_to_array(codedef["sc_table"])
+        code.la_table = _str_to_array(codedef["la_table"])
+        code.qc_table = _str_to_array(codedef["qc_table"])
 
         self.codes[code.hash] = code
 
