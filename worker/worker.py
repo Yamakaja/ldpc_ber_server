@@ -144,13 +144,43 @@ class Worker:
 
             self._tasks.task_done()
 
+    def submit_task(self, task):
+        self._tasks.put(task)
+
     def get_ber(self):
         current_ber = np.array([np.array([ber.bit_errors,ber.finished_blocks]) for ber in self.ber_testers])
         current_ber = np.sum(current_ber[:,0]) / (code.k * np.sum(current_ber[:,1]))
         return current_ber
 
-    def add_code(self, code):
-        self.codes.append(code)
+    def _str_to_array(v):
+        return [int(x) for x in v.strip().split(" ") if len(x) > 0]
+
+    def add_code(self, codedef):
+        code = sdfec.ldpc_code()
+
+        code.dec_OK = codedef.dec_OK
+        code.enc_OK = codedef.enc_OK
+
+        code.n = codedef.n
+        code.k = codedef.k
+        code.p = codedef.p
+        code.nlayers = codedef.nlayers
+        code.nqc = codedef.nqc
+        code.nmqc = codedef.nmqc
+        code.nm = codedef.nm
+        code.norm_type = codedef.norm_type
+        code.no_packing = codedef.no_packing
+        code.special_qc = codedef.special_qc
+        code.no_final_parity = codedef.no_final_parity
+        code.max_schedule = codedef.max_schedule
+
+        code.sc_table = _str_to_array(codedef.sc_table)
+        code.la_table = _str_to_array(codedef.la_table)
+        code.qc_table = _str_to_array(codedef.qc_table)
+
+        self.codes[code.hash] = code
+
+        return code.hash
 
     @property
     def status(self):

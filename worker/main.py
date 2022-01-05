@@ -7,6 +7,7 @@ import json
 import os
 import argparse
 import web_api
+import worker_test
 
 parser = argparse.ArgumentParser(description='LDPC BER Tester Worker Process.')
 parser.add_argument("-c", '--config-file', default="config.json", type=argparse.FileType('r', encoding='utf-8'),
@@ -19,7 +20,6 @@ args = parser.parse_args()
 config = json.load(args.config_file)
 
 if args.CMD == "api_server":
-    print("hi")
     web_api.run(config, args.debug)
 
 elif args.CMD == "status":
@@ -27,3 +27,5 @@ elif args.CMD == "status":
 
 elif args.CMD == "test":
     print("Testing cores with simulation - not implemented yet!")
+    worker_test.run(config, args.debug)
+
