@@ -108,7 +108,7 @@ class CoreWorker:
                         dbg_msg(f"   finished_blocks: {fec.finished_blocks}")
                         dbg_msg(f"   bit_errors:      {fec.bit_errors}")
                         dbg_msg(f"   in_flight:       {fec.in_flight}")
-                        dbg_msg(f"   last_status:     0x{hex(fec.in_flight)}")
+                        dbg_msg(f"   last_status:     {hex(fec.in_flight)}")
                     time.sleep(1)
 
                 for ber in self.ber_testers:
