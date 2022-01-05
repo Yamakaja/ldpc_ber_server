@@ -17,7 +17,7 @@ class LDPCBERTester:
         # SDFEC control word values
         self.block_id = 0
         self.max_iterations = 8
-        self.term_on_no_change = True
+        self.term_on_no_change = False
         self.term_on_pass = True
         self.include_parity_op = False
         self.hard_op = True
@@ -55,12 +55,12 @@ class LDPCBERTester:
         assert self._din_beats > 0
 
         if val:
-            sefl._write("sdfec_ctrl_word", self._ctrl_word)
+            self._write("sdfec_ctrl_word", self._ctrl_word)
 
         self._write("control_enable", int(val))
 
     def _update_snr(self):
-        sigma = self_snr_scale * 10 ** (-self.snr / 20)
+        sigma = self.snr_scale * 10 ** (-self.snr / 20)
         mu = -self._snr_scale
 
         # Clamping
@@ -116,7 +116,8 @@ class LDPCBERTester:
         if rem == 0:
             rem = 128
 
-        self.last_mask = (1 << 128) - 1
+
+        self.last_mask = (1 << rem) - 1
 
         data = [hex(0xFFFFFFFF & (self.last_mask >> (i*32))) for i in range(4)]
         self._write("last_mask", " ".join(data))
@@ -156,6 +157,7 @@ class LDPCBERTester:
         path = f"{self.base_path}/{name}"
         with open(path, "w") as f:
             f.write(str(val))
+            f.write("\n")
 
     @property
     def _ctrl_word(self):
@@ -175,7 +177,7 @@ class LDPCBERTester:
         val |= int(self.term_on_pass)       << 16 # to 17
         val |= int(self.include_parity_op)  << 15 # to 16
         val |= int(self.hard_op)            << 14 # to 15
-        val |= code                         << 0  # to 8
+        val |= self.code                    << 0  # to 8
 
         return 0xFFFFFFFF & val
 

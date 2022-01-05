@@ -17,11 +17,14 @@ class SimulationTask:
         self.snr_scales = np.array(snr_scales)
 
         if len(self.snr_scales) == 0:
-            self.snr_scales = np.ones(self.snrs, dtype=float)
+            self.snr_scales = np.ones(self.snrs.size, dtype=float)
 
-        self.termination_time = term_time
-        self.termination_errors = term_errors
-        self.max_iterations = 8
+        self.term_time = term_time
+        self.term_errors = term_errors
+        self.max_iterations = max_iterations
+
+    def __repr__(self):
+        return str(self.__dict__)
 
 class TaskResult:
 
@@ -31,6 +34,9 @@ class TaskResult:
 
         self.snrs = snrs
         self.bers = bers
+
+    def __repr__(self):
+        return str(self.__dict__)
 
 class Worker:
 
@@ -51,13 +57,21 @@ class Worker:
 
         Thread(target=self.simulation_worker, name="SDFEC Simulation Worker").start()
 
+    def join(self):
+        self.running = False
+        return self._tasks.join()
+
     def simulation_worker(self):
         def dbg_msg(v):
             if self.debug:
                 print("SimulationWorker:", v)
 
-        while self.running:
-            task = self._tasks.get()
+        while self.running or not self._tasks.empty():
+            try:
+                task = self._tasks.get(timeout=0.1)
+            except:
+                continue
+
             dbg_msg("Got new task!")
 
             if task.code_id not in self.codes:
@@ -81,6 +95,7 @@ class Worker:
                 
             for ber in self.ber_testers:
                 dbg_msg(f"Pre-Task BER enable: {ber.enable}")
+                ber.max_iterations = task.max_iterations
                 ber.n = code.n
                 ber.k = code.k
 
@@ -98,17 +113,17 @@ class Worker:
                     ber.enable = True
 
                 start_time = time.time()
-                while sum([fec.bit_errors for fec in self.sdfecs]) < task.term_errors \
+                while sum([ber.bit_errors for ber in self.ber_testers]) < task.term_errors \
                       and start_time + task.term_time > time.time():
                     dbg_msg("Running - Status:")
-                    dbg_msg(f"Current BER: {get_ber()}")
+                    dbg_msg(f"Current BER: {self.get_ber()}")
 
                     for ber in self.ber_testers:
-                        dbg_msg(f" - FEC {fec.id}")
-                        dbg_msg(f"   finished_blocks: {fec.finished_blocks}")
-                        dbg_msg(f"   bit_errors:      {fec.bit_errors}")
-                        dbg_msg(f"   in_flight:       {fec.in_flight}")
-                        dbg_msg(f"   last_status:     {hex(fec.in_flight)}")
+                        dbg_msg(f" - FEC {ber.core_id}")
+                        dbg_msg(f"   finished_blocks: {ber.finished_blocks}")
+                        dbg_msg(f"   bit_errors:      {ber.bit_errors}")
+                        dbg_msg(f"   in_flight:       {ber.in_flight}")
+                        dbg_msg(f"   last_status:     {hex(ber.last_status)}")
                     time.sleep(1)
 
                 for ber in self.ber_testers:
@@ -116,20 +131,22 @@ class Worker:
 
                 while any([fec.active for fec in self.sdfecs]):
                     dbg_msg("Waiting for SDFECs to finish ...")
-                    time.sleep(0.01)
+                    time.sleep(1)
 
                 dbg_msg("Done!")
 
                 for fec in self.sdfecs:
                     fec.stop()
 
-                current_ber = get_ber()
+                current_ber = self.get_ber()
                 dbg_msg(f"Results are in: BER = {current_ber}")
 
                 result_bers.append(current_ber)
 
                 for ber in self.ber_testers:
                     ber.reset()
+
+                print(f"Done with SNR={snr}")
 
             assert len(result_bers) == len(task.snrs)
 
@@ -142,14 +159,16 @@ class Worker:
 
             self.results["task_id"] = result
 
+            print("Completed task!")
             self._tasks.task_done()
 
     def submit_task(self, task):
         self._tasks.put(task)
 
     def get_ber(self):
-        current_ber = np.array([np.array([ber.bit_errors,ber.finished_blocks]) for ber in self.ber_testers])
-        current_ber = np.sum(current_ber[:,0]) / (code.k * np.sum(current_ber[:,1]))
+        current_ber = np.array([np.array([ber.bit_errors,ber.finished_blocks]) for ber in self.ber_testers], dtype=np.int64)
+        # print("current_ber: ", current_ber)
+        current_ber = np.sum(current_ber[:,0]) / (self.codes[self.loaded_code].k * np.sum(current_ber[:,1]))
         return current_ber
 
 
