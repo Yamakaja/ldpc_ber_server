@@ -381,7 +381,7 @@ struct xsdfec_ldpc_param_table_sizes {
  *
  * This can only be used when the driver is in the XSDFEC_STOPPED state
  */
-#define XSDFEC_SET_ORDER _IOW(XSDFEC_MAGIC, 8, unsigned long)
+#define XSDFEC_SET_ORDER _IOW(XSDFEC_MAGIC, 8, u64)
 /**
  * DOC: XSDFEC_SET_BYPASS
  * @Parameters
