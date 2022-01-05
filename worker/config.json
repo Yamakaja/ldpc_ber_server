@@ -3,12 +3,12 @@
     "ip_address": "0.0.0.0",
     "port": 8230,
     "ber_tester": [
-        "ldpc_ber_tester_0",
-        "ldpc_ber_tester_1",
-        "ldpc_ber_tester_2",
-        "ldpc_ber_tester_3",
-        "ldpc_ber_tester_4",
-        "ldpc_ber_tester_5"
+        "/sys/bus/platform/drivers/axi_ldpc_ber_tester/84800000.axi-ldpc-ber-tester",
+        "/sys/bus/platform/drivers/axi_ldpc_ber_tester/84900000.axi-ldpc-ber-tester",
+        "/sys/bus/platform/drivers/axi_ldpc_ber_tester/84a00000.axi-ldpc-ber-tester",
+        "/sys/bus/platform/drivers/axi_ldpc_ber_tester/84b00000.axi-ldpc-ber-tester",
+        "/sys/bus/platform/drivers/axi_ldpc_ber_tester/84c00000.axi-ldpc-ber-tester",
+        "/sys/bus/platform/drivers/axi_ldpc_ber_tester/84d00000.axi-ldpc-ber-tester"
     ],
     "sdfec": [0, 1, 2, 3, 4, 5]
 }
