@@ -28,12 +28,14 @@ class SimulationTask:
 
 class TaskResult:
 
-    def __init__(self, task_id, success: bool, message: str = "", snrs=[], bers=[]):
+    def __init__(self, task_id, success: bool, message: str = "", snrs=[], bers=[], speeds=[]):
         self.task_id = task_id
         self.success = success
 
         self.snrs = snrs
         self.bers = bers
+
+        self.speeds = speeds
 
     def __repr__(self):
         return str(self.__dict__)
@@ -92,7 +94,7 @@ class Worker:
                 for fec in self.sdfecs:
                     dbg_msg(f"Pre-Task SDFEC state: {fec.state}")
                     fec.set_ldpc_code(code)
-                
+
             for ber in self.ber_testers:
                 dbg_msg(f"Pre-Task BER enable: {ber.enable}")
                 ber.max_iterations = task.max_iterations
@@ -102,6 +104,7 @@ class Worker:
             self.loaded_code = task.code_id
 
             result_bers = []
+            result_speeds = []
 
             for snr,snr_scale in zip(task.snrs, task.snr_scales):
                 for fec in self.sdfecs:
@@ -111,6 +114,8 @@ class Worker:
                     ber.snr_scale = snr_scale
                     ber.snr = snr
                     ber.enable = True
+
+                finished_blocks = 0
 
                 start_time = time.time()
                 while sum([ber.bit_errors for ber in self.ber_testers]) < task.term_errors \
@@ -138,24 +143,29 @@ class Worker:
                 for fec in self.sdfecs:
                     fec.stop()
 
+                stop_time = time.time()
+
                 current_ber = self.get_ber()
-                dbg_msg(f"Results are in: BER = {current_ber}")
+                print(f"Results are in: SNR = {snr}, BER = {current_ber}")
 
                 result_bers.append(current_ber)
+
+                finished_blocks = sum([ber.finished_blocks for ber in self.ber_testers])
+                result_speeds.append(code.n * finished_blocks / (stop_time - start_time))
 
                 for ber in self.ber_testers:
                     ber.reset()
 
-                print(f"Done with SNR={snr}")
-
             assert len(result_bers) == len(task.snrs)
+
 
             result = TaskResult(
                     task_id=task.task_id,
                     success=True,
                     message="Success!",
                     snrs=task.snrs,
-                    bers=result_bers)
+                    bers=result_bers,
+                    speeds=result_speeds)
 
             self.results["task_id"] = result
 
