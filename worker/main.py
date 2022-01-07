@@ -15,17 +15,17 @@ parser.add_argument("-c", '--config-file', default="config.json", type=argparse.
 parser.add_argument("CMD", choices=["api_server", "status", "test"],
         default="api_server", help="Available commands: [api_server, status, test]", metavar="CMD")
 parser.add_argument("-d", "--debug", action="store_true", help="Launch server in debug mode and/or print debug information")
+parser.add_argument("-n", "--dry-run", action="store_true", help="Do not initialize hardware")
 
 args = parser.parse_args()
 config = json.load(args.config_file)
 
 if args.CMD == "api_server":
-    web_api.run(config, args.debug)
+    web_api.run(config, args.debug, args.dry_run)
 
 elif args.CMD == "status":
     print("SDFEC status information - not implemnted yet!")
 
 elif args.CMD == "test":
-    print("Testing cores with simulation!")
-    worker_test.run(config, args.debug)
+    worker_test.run(config, args.debug, args.dry_run)
 

@@ -1,27 +1,30 @@
 #!/usr/bin/python
 
-from threading import Thread
+import hashlib
+import numpy as np
 from queue import Queue
+from threading import Thread
 import time
 
-import numpy as np
 import sdfec
 from ldpc_ber_tester import LDPCBERTester
 
 class SimulationTask:
 
-    def __init__(self, task_id, code_id, snrs, snr_scales=[], term_time=60, term_errors=1000, max_iterations=8):
-        self.task_id = task_id
+    def __init__(self, code_id, snrs, snr_scales=[], term_time=60, term_errors=1000, max_iterations=8):
         self.code_id = code_id
-        self.snrs = np.array(snrs)
-        self.snr_scales = np.array(snr_scales)
+        self.snrs = snrs
+        self.snr_scales = snr_scales
 
         if len(self.snr_scales) == 0:
-            self.snr_scales = np.ones(self.snrs.size, dtype=float)
+            self.snr_scales = [1.0] * len(self.snrs)
 
         self.term_time = term_time
         self.term_errors = term_errors
         self.max_iterations = max_iterations
+
+        self.task_id = hashlib.md5(f"{self.code_id}, {self.snrs}, {self.snr_scales}, "
+            "{self.term_time}, {self.term_errors}, {self.max_iterations}".encode("UTF-8")).hexdigest()
 
     def __repr__(self):
         return str(self.__dict__)
@@ -32,7 +35,7 @@ class TaskResult:
         self.task_id = task_id
         self.success = success
 
-        self.snrs = snrs
+        self.snrs = list(snrs)
         self.bers = bers
 
         self.speeds = speeds
@@ -42,20 +45,29 @@ class TaskResult:
 
 class Worker:
 
-    def __init__(self, config, debug):
+    def __init__(self, config, debug, dry_run=False):
         self.config = config
         self.debug = debug
 
-        self.sdfecs = [sdfec.sdfec(i, True) for i in config["sdfec"]]
-        self.ber_testers = [LDPCBERTester(p) for p in config["ber_tester"]]
+        if not dry_run:
+            self.sdfecs = [sdfec.sdfec(i, True) for i in config["sdfec"]]
+            self.ber_testers = [LDPCBERTester(p) for p in config["ber_tester"]]
+        else:
+            self.sdfecs = []
+            self.ber_testers = []
 
         self.running = True
 
         self._tasks = Queue()
         self.results = {}
+        self.current_task = None
+        self.progress = 0
+        self.eta = 0
 
         self.loaded_code = None
         self.codes = {}
+
+        self.cancelled_tasks = []
 
         Thread(target=self.simulation_worker, name="SDFEC Simulation Worker").start()
 
@@ -72,18 +84,21 @@ class Worker:
             try:
                 task = self._tasks.get(timeout=0.1)
             except:
+                self.cancelled_tasks.clear()
                 continue
 
             dbg_msg("Got new task!")
 
-            if task.code_id not in self.codes:
-                result = TaskResult(
-                        task_id = task.task_id,
-                        success = False,
-                        message = "Requested code not available!"
-                        )
+            if task.task_id in self.cancelled_tasks:
+                self.cancelled_tasks.remove(task.task_id)
+                continue
 
-                self.results[task.task_id] = result
+            if task.task_id in self.results:
+                self._tasks.task_done()
+                continue
+
+            if task.code_id not in self.codes:
+                print("[ERROR] Task with invalid code_id in queue!")
                 self._tasks.task_done()
                 continue
 
@@ -106,29 +121,54 @@ class Worker:
             result_bers = []
             result_speeds = []
 
+            self.current_task = task
+            self.progress = 0
+            self.eta = task.term_time * len(task.snrs)
+            i = 0
+
             for snr,snr_scale in zip(task.snrs, task.snr_scales):
                 for fec in self.sdfecs:
                     fec.start()
 
+                start_time = time.time()
                 for ber in self.ber_testers:
                     ber.snr_scale = snr_scale
                     ber.snr = snr
                     ber.enable = True
 
-                finished_blocks = 0
+                while True:
+                    if task.task_id in self.cancelled_tasks:
+                        break
 
-                start_time = time.time()
-                while sum([ber.bit_errors for ber in self.ber_testers]) < task.term_errors \
-                      and start_time + task.term_time > time.time():
-                    dbg_msg("Running - Status:")
+                    total_errors = sum([ber.bit_errors for ber in self.ber_testers])
+                    remaining_time = start_time + task.term_time - time.time()
+                    passed_time = time.time() - start_time
+
+                    if total_errors > task.term_errors or remaining_time <= 0:
+                        break
+
+                    dbg_msg(f"Running - Status:")
                     dbg_msg(f"Current BER: {self.get_ber()}")
 
-                    for ber in self.ber_testers:
-                        dbg_msg(f" - FEC {ber.core_id}")
-                        dbg_msg(f"   finished_blocks: {ber.finished_blocks}")
-                        dbg_msg(f"   bit_errors:      {ber.bit_errors}")
-                        dbg_msg(f"   in_flight:       {ber.in_flight}")
-                        dbg_msg(f"   last_status:     {hex(ber.last_status)}")
+                    # Update ETA & Progress
+
+                    # Inter SNR progress
+                    iprogress = max(total_errors / task.term_errors, passed_time / task.term_time)
+                    self.progress = (i+iprogress) / len(task.snrs)
+                    eta = (len(task.snrs)-i) * task.term_time
+                    if total_errors == 0 or passed_time == 0:
+                        self.eta = eta + remaining_time
+                    else:
+                        self.eta = eta + min(remaining_time, (task.term_errors - total_errors) / (total_errors / passed_time))
+                    
+                    if self.debug:
+                        for ber in self.ber_testers:
+                            dbg_msg(f" - FEC {ber.core_id}")
+                            dbg_msg(f"   finished_blocks: {ber.finished_blocks}")
+                            dbg_msg(f"   bit_errors:      {ber.bit_errors}")
+                            dbg_msg(f"   in_flight:       {ber.in_flight}")
+                            dbg_msg(f"   last_status:     {hex(ber.last_status)}")
+
                     time.sleep(1)
 
                 for ber in self.ber_testers:
@@ -156,8 +196,21 @@ class Worker:
                 for ber in self.ber_testers:
                     ber.reset()
 
+                i += 1
+
+                if task.task_id in self.cancelled_tasks:
+                    break
+
+            if task.task_id in self.cancelled_tasks:
+                self.cancelled_tasks.remove(task.task_id)
+                self._tasks.task_done()
+                self.current_task = None
+
+                continue
+
             assert len(result_bers) == len(task.snrs)
 
+            self.current_task = None
 
             result = TaskResult(
                     task_id=task.task_id,
@@ -167,9 +220,9 @@ class Worker:
                     bers=result_bers,
                     speeds=result_speeds)
 
-            self.results["task_id"] = result
+            self.results[task.task_id] = result
 
-            print("Completed task!")
+            print("Completed task:", task.task_id)
             self._tasks.task_done()
 
     def submit_task(self, task):
@@ -177,10 +230,11 @@ class Worker:
 
     def get_ber(self):
         current_ber = np.array([np.array([ber.bit_errors,ber.finished_blocks]) for ber in self.ber_testers], dtype=np.int64)
-        # print("current_ber: ", current_ber)
+        if len(self.ber_testers) == 0 or np.sum(current_ber[:,1]) == 0 or current_ber.size == 0:
+            return 0
+
         current_ber = np.sum(current_ber[:,0]) / (self.codes[self.loaded_code].k * np.sum(current_ber[:,1]))
         return current_ber
-
 
     def add_code(self, codedef):
         if not isinstance(codedef, dict) or "dec_OK" not in codedef or not codedef["dec_OK"]:
@@ -222,30 +276,37 @@ class Worker:
                 "name": self.config["name"],
                 "running": self.running
                 }
+
         if self.loaded_code != None:
             ret["loaded_code"] = self.loaded_code
 
-        ret["sdfecs"] = [{
-                "id": fec.id,
-                "active": fec.active,
-                "state": fec.state,
-                "bypass": fec.bypass
-            } for fec in self.sdfecs]
+        task = self.current_task
+        if task is not None:
+            ret["current_task"] = task.task_id
+            ret["progress"] = self.progress
+            ret["eta"] = self.eta
 
-        ret["ber_testers"] = [{
-                "id": ber.core_id,
-                "version": ber.version,
-                "scratch": ber.scratch,
-                "enable": ber.enable,
-                "snr": ber.snr,
-                "snr_scale": ber.snr_scale,
-                "n": ber.n,
-                "k": ber.k,
-                "finished_blocks": ber.finished_blocks,
-                "bit_errors": ber.bit_errors,
-                "in_flight": ber.in_flight,
-                "last_status": ber.last_status
-            } for ber in self.ber_testers]
+        # ret["sdfecs"] = [{
+        #         "id": fec.id,
+        #         "active": fec.active,
+        #         "state": fec.state,
+        #         "bypass": fec.bypass
+        #     } for fec in self.sdfecs]
+
+        # ret["ber_testers"] = [{
+        #         "id": ber.core_id,
+        #         "version": ber.version,
+        #         "scratch": ber.scratch,
+        #         "enable": ber.enable,
+        #         "snr": ber.snr,
+        #         "snr_scale": ber.snr_scale,
+        #         "n": ber.n,
+        #         "k": ber.k,
+        #         "finished_blocks": ber.finished_blocks,
+        #         "bit_errors": ber.bit_errors,
+        #         "in_flight": ber.in_flight,
+        #         "last_status": ber.last_status
+        #     } for ber in self.ber_testers]
 
         return ret
 

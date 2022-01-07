@@ -13,7 +13,7 @@ def run(config, debug):
     b = 7
     N = 4
     points = (b-a)*N + 1
-    task = SimulationTask(0, code, np.linspace(a, b, points), snr_scales=np.ones(points)*2, term_time=10, term_errors=1e5, max_iterations=32)
+    task = SimulationTask(code, np.linspace(a, b, points), snr_scales=np.ones(points)*2, term_time=10, term_errors=1e5, max_iterations=32)
     worker.submit_task(task)
 
     worker.join()
