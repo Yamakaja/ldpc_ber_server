@@ -26,6 +26,6 @@ elif args.CMD == "status":
     print("SDFEC status information - not implemnted yet!")
 
 elif args.CMD == "test":
-    print("Testing cores with simulation - not implemented yet!")
+    print("Testing cores with simulation!")
     worker_test.run(config, args.debug)
 
