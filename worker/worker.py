@@ -26,6 +26,11 @@ class SimulationTask:
         self.task_id = hashlib.md5(f"{self.code_id}, {self.snrs}, {self.snr_scales}, "
             "{self.term_time}, {self.term_errors}, {self.max_iterations}".encode("UTF-8")).hexdigest()
 
+        self.eta = self.term_time * len(self.snrs)
+        self.progress = 0
+
+        self.state = "INITIALIZED"
+
     def __repr__(self):
         return str(self.__dict__)
 
@@ -58,11 +63,10 @@ class Worker:
 
         self.running = True
 
-        self._tasks = Queue()
+        self.task_queue = Queue()
+        self.tasks = {}
         self.results = {}
         self.current_task = None
-        self.progress = 0
-        self.eta = 0
 
         self.loaded_code = None
         self.codes = {}
@@ -73,16 +77,16 @@ class Worker:
 
     def join(self):
         self.running = False
-        return self._tasks.join()
+        return self.task_queue.join()
 
     def simulation_worker(self):
         def dbg_msg(v):
             if self.debug:
                 print("SimulationWorker:", v)
 
-        while self.running or not self._tasks.empty():
+        while self.running or not self.task_queue.empty():
             try:
-                task = self._tasks.get(timeout=0.1)
+                task = self.task_queue.get(timeout=0.1)
             except:
                 self.cancelled_tasks.clear()
                 continue
@@ -90,16 +94,19 @@ class Worker:
             dbg_msg("Got new task!")
 
             if task.task_id in self.cancelled_tasks:
+                task.state = "CANCELLED"
                 self.cancelled_tasks.remove(task.task_id)
                 continue
 
             if task.task_id in self.results:
-                self._tasks.task_done()
+                self.task_queue.task_done()
+                task.state = "DONE"
                 continue
 
             if task.code_id not in self.codes:
                 print("[ERROR] Task with invalid code_id in queue!")
-                self._tasks.task_done()
+                self.task_queue.task_done()
+                task.state = "INVALID"
                 continue
 
             code = self.codes[task.code_id]
@@ -122,9 +129,11 @@ class Worker:
             result_speeds = []
 
             self.current_task = task
-            self.progress = 0
-            self.eta = task.term_time * len(task.snrs)
+            task.progress = 0
+            task.eta = task.term_time * len(task.snrs)
             i = 0
+
+            task.state = "RUNNING"
 
             for snr,snr_scale in zip(task.snrs, task.snr_scales):
                 for fec in self.sdfecs:
@@ -154,12 +163,12 @@ class Worker:
 
                     # Inter SNR progress
                     iprogress = max(total_errors / task.term_errors, passed_time / task.term_time)
-                    self.progress = (i+iprogress) / len(task.snrs)
+                    task.progress = (i+iprogress) / len(task.snrs)
                     eta = (len(task.snrs)-i) * task.term_time
                     if total_errors == 0 or passed_time == 0:
-                        self.eta = eta + remaining_time
+                        task.eta = eta + remaining_time
                     else:
-                        self.eta = eta + min(remaining_time, (task.term_errors - total_errors) / (total_errors / passed_time))
+                        task.eta = eta + min(remaining_time, (task.term_errors - total_errors) / (total_errors / passed_time))
                     
                     if self.debug:
                         for ber in self.ber_testers:
@@ -203,9 +212,10 @@ class Worker:
 
             if task.task_id in self.cancelled_tasks:
                 self.cancelled_tasks.remove(task.task_id)
-                self._tasks.task_done()
+                self.task_queue.task_done()
                 self.current_task = None
 
+                task.state = "CANCELLED"
                 continue
 
             assert len(result_bers) == len(task.snrs)
@@ -222,11 +232,15 @@ class Worker:
 
             self.results[task.task_id] = result
 
+            task.state = "DONE"
+
             print("Completed task:", task.task_id)
-            self._tasks.task_done()
+            self.task_queue.task_done()
 
     def submit_task(self, task):
-        self._tasks.put(task)
+        task.state = "WAITING"
+        self.tasks[task.task_id] = task
+        self.task_queue.put(task)
 
     def get_ber(self):
         current_ber = np.array([np.array([ber.bit_errors,ber.finished_blocks]) for ber in self.ber_testers], dtype=np.int64)
@@ -267,46 +281,40 @@ class Worker:
 
         self.codes[code.hash] = code
 
-
         return code.hash
 
     @property
     def status(self):
         ret = {
                 "name": self.config["name"],
-                "running": self.running
+                "running": self.running,
+                "current_task": self.current_task
                 }
 
         if self.loaded_code != None:
             ret["loaded_code"] = self.loaded_code
 
-        task = self.current_task
-        if task is not None:
-            ret["current_task"] = task.task_id
-            ret["progress"] = self.progress
-            ret["eta"] = self.eta
+        ret["sdfecs"] = [{
+                "id": fec.id,
+                "active": fec.active,
+                "state": fec.state,
+                "bypass": fec.bypass
+            } for fec in self.sdfecs]
 
-        # ret["sdfecs"] = [{
-        #         "id": fec.id,
-        #         "active": fec.active,
-        #         "state": fec.state,
-        #         "bypass": fec.bypass
-        #     } for fec in self.sdfecs]
-
-        # ret["ber_testers"] = [{
-        #         "id": ber.core_id,
-        #         "version": ber.version,
-        #         "scratch": ber.scratch,
-        #         "enable": ber.enable,
-        #         "snr": ber.snr,
-        #         "snr_scale": ber.snr_scale,
-        #         "n": ber.n,
-        #         "k": ber.k,
-        #         "finished_blocks": ber.finished_blocks,
-        #         "bit_errors": ber.bit_errors,
-        #         "in_flight": ber.in_flight,
-        #         "last_status": ber.last_status
-        #     } for ber in self.ber_testers]
+        ret["ber_testers"] = [{
+                "id": ber.core_id,
+                "version": ber.version,
+                "scratch": ber.scratch,
+                "enable": ber.enable,
+                "snr": ber.snr,
+                "snr_scale": ber.snr_scale,
+                "n": ber.n,
+                "k": ber.k,
+                "finished_blocks": ber.finished_blocks,
+                "bit_errors": ber.bit_errors,
+                "in_flight": ber.in_flight,
+                "last_status": ber.last_status
+            } for ber in self.ber_testers]
 
         return ret
 

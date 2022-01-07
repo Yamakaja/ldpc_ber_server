@@ -59,16 +59,32 @@ def put_task():
     if task.task_id in worker.results:
         result = worker.results[task.task_id]
         if result.success:
-            return jsonify({"task_id": task.task_id, "message": "Results available!"}, code=200)
+            return jsonify({"id": task.task_id, "message": "Results available!"}, code=200)
 
     if task.code_id not in worker.codes:
         return jsonify({"message": "Code not available!"}, code=404)
 
     worker.submit_task(task)
-    return jsonify({"task_id": task.task_id}, 201)
+    return jsonify({"id": task.task_id}, 201)
+
+@app.route("/api/task/<task_id>", methods=["GET"])
+def get_task(task_id):
+    if task_id not in worker.tasks:
+        return Response(status=404)
+
+    return jsonify(worker.tasks[task_id])
+
+@app.route("/api/tasks", methods=["GET"])
+def get_tasks():
+    return jsonify(list(worker.tasks.keys()))
 
 @app.route("/api/task/<task_id>", methods=["DELETE"])
 def delete_task(task_id):
+    if task_id not in worker.tasks:
+        return ResponseCode(status=404)
+
+    del worker.tasks[task_id]
+
     worker.cancelled_tasks.append(task_id)
     return Response(status=200)
 
@@ -87,6 +103,5 @@ def get_result(task_id):
 
 def run(config, debug, dry_run=False):
     global worker
-    print(dry_run)
     worker = Worker(config, debug, dry_run)
     app.run(host=config["ip_address"], port=config["port"], debug=debug)
