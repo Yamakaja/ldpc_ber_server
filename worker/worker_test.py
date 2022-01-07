@@ -9,11 +9,11 @@ def run(config, debug):
     with open("test.sdfec.yml", "r") as f:
         code = worker.add_code(yaml.load(f))
 
-    a = 6
-    b = 6.5
-    N = 9
-    points = 11
-    task = SimulationTask(0, code, np.linspace(a, b, points), snr_scales=np.ones(points)*2, term_time=120, term_errors=1e5, max_iterations=32)
+    a = 3
+    b = 7
+    N = 4
+    points = (b-a)*N + 1
+    task = SimulationTask(0, code, np.linspace(a, b, points), snr_scales=np.ones(points)*2, term_time=10, term_errors=1e5, max_iterations=32)
     worker.submit_task(task)
 
     worker.join()
