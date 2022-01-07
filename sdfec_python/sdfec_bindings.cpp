@@ -30,6 +30,7 @@ PYBIND11_MODULE(sdfec, m) {
         .def_property("qc_table", &ldpc_code::get_qc_table, &ldpc_code::set_qc_table)
         .def_property("dec_OK", &ldpc_code::get_dec_ok, &ldpc_code::set_dec_ok)
         .def_property("enc_OK", &ldpc_code::get_enc_ok, &ldpc_code::set_enc_ok)
+        .def_property_readonly("valid", &ldpc_code::is_valid)
         .def_property_readonly("json", &ldpc_code::to_json)
         .def_property_readonly("hash", &ldpc_code::get_hash)
         .def_property("dict", [](ldpc_code& self) {

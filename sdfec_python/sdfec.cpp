@@ -75,6 +75,18 @@ std::string vector_to_string(const std::vector<T>& vec) {
 
 }
 
+bool ldpc_code::is_valid() const {
+    const xsdfec_user_ldpc_code_params& p = m_ldpc_code_params;
+    return m_dec_ok &&
+        4 <= p.n && p.n <= 32768 &&
+        2 <= p.k && p.k <= 32766 &&
+        2 <= p.psize && p.psize <= 512 &&
+        p.nmqc > 0 &&
+        m_sc_table.size() > 0 &&
+        m_la_table.size() > 0 &&
+        m_qc_table.size() > 0;
+}
+
 std::string ldpc_code::to_json() {
     return boost::str(boost::format("{"
         "\"dec_OK\": %d, " 

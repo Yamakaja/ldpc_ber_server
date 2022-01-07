@@ -40,6 +40,8 @@ public:
     void set_la_table(const std::vector<uint32_t>& v) { m_la_table = v; }
     void set_qc_table(const std::vector<uint32_t>& v) { m_qc_table = v; }
 
+    bool is_valid() const;
+
     uint32_t get_n() const { return m_ldpc_code_params.n; }
     void set_n(uint32_t v) { m_ldpc_code_params.n = v; }
 
