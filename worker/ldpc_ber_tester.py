@@ -89,7 +89,7 @@ class LDPCBERTester:
 
     @snr_scale.setter
     def snr_scale(self, val: float):
-        assert 0 < val < 8
+        assert 0 < val <= 10 
         self._snr_scale = val
         self._update_snr()
 
