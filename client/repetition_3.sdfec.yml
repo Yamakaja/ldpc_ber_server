@@ -1,0 +1,22 @@
+---
+dec_OK: 1
+enc_OK: 1
+n: 1536
+k: 512
+p: 128
+nlayers: 8
+nqc: 16
+nmqc: 16
+nm: 12
+norm_type: 1
+no_packing: 0
+special_qc: 0
+no_final_parity: 0
+max_schedule: 0
+sc_table: 52428 52428
+la_table: 1537 1 1 1 1537 1 1 1
+qc_table: >
+  131072 393220 131073 393221 131074 
+  393222 131075 393223 0 393224 1 393225 2 
+  393226 3 393227
+
