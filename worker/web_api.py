@@ -56,10 +56,8 @@ def put_task():
 
     task = SimulationTask(**body)
 
-    if task.task_id in worker.results:
-        result = worker.results[task.task_id]
-        if result.success:
-            return jsonify({"id": task.task_id, "message": "Results available!"}, code=200)
+    if task.task_id in worker.tasks:
+        return jsonify({"id": task.task_id, "message": "Task already present!"}, code=200)
 
     if task.code_id not in worker.codes:
         return jsonify({"message": "Code not available!"}, code=404)
