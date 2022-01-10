@@ -164,7 +164,7 @@ class Worker:
                     # Inter SNR progress
                     iprogress = max(total_errors / task.term_errors, passed_time / task.term_time)
                     task.progress = (i+iprogress) / len(task.snrs)
-                    eta = (len(task.snrs)-i) * task.term_time
+                    eta = (len(task.snrs)-1-i) * task.term_time
                     if total_errors == 0 or passed_time == 0:
                         task.eta = eta + remaining_time
                     else:
