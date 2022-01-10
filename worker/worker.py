@@ -36,7 +36,7 @@ class SimulationTask:
 
 class TaskResult:
 
-    def __init__(self, task_id, success: bool, message: str = "", snrs=[], bers=[], speeds=[]):
+    def __init__(self, task_id, success: bool, message: str = "", snrs=[], bers=[], speeds=[], finished_blocks=[], bit_errors=[]):
         self.task_id = task_id
         self.success = success
 
@@ -44,6 +44,8 @@ class TaskResult:
         self.bers = bers
 
         self.speeds = speeds
+        self.finished_blocks = finished_blocks
+        self.bit_errors = bit_errors
 
     def __repr__(self):
         return str(self.__dict__)
@@ -127,6 +129,8 @@ class Worker:
 
             result_bers = []
             result_speeds = []
+            result_finished_blocks = []
+            result_bit_errors = []
 
             self.current_task = task
             task.progress = 0
@@ -200,7 +204,10 @@ class Worker:
                 result_bers.append(current_ber)
 
                 finished_blocks = sum([ber.finished_blocks for ber in self.ber_testers])
+                bit_errors = sum([ber.bit_errors for ber in self.ber_testers])
                 result_speeds.append(code.n * finished_blocks / (stop_time - start_time))
+                result_finished_blocks.append(finished_blocks)
+                result_bit_errors.append(bit_errors)
 
                 for ber in self.ber_testers:
                     ber.reset()
@@ -228,7 +235,9 @@ class Worker:
                     message="Success!",
                     snrs=task.snrs,
                     bers=result_bers,
-                    speeds=result_speeds)
+                    speeds=result_speeds,
+                    finished_blocks=result_finished_blocks,
+                    bit_errors=result_bit_errors)
 
             self.results[task.task_id] = result
 
