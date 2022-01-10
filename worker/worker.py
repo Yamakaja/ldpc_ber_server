@@ -291,8 +291,7 @@ class Worker:
                 "current_task": self.current_task.task_id
                 }
 
-        if self.loaded_code != None:
-            ret["loaded_code"] = self.loaded_code
+        ret["loaded_code"] = self.loaded_code
 
         ret["sdfecs"] = [{
                 "id": fec.id,
