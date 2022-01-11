@@ -95,6 +95,9 @@ class Worker:
 
             dbg_msg("Got new task!")
 
+            # Setup procedure
+
+            # Task cancelled or already has results available? Skip
             if task.task_id in self.cancelled_tasks:
                 task.state = "CANCELLED"
                 self.cancelled_tasks.remove(task.task_id)
@@ -113,20 +116,30 @@ class Worker:
 
             code = self.codes[task.code_id]
 
+            for ber in self.ber_testers:
+                if ber.enable:
+                    ber.enable = False
+                    time.sleep(0.001)
+                ber.reset()
+
+                ber.max_iterations = task.max_iterations
+                ber.n = code.n
+                ber.k = code.k
+
+            # Pipeline should be empty by now, stop all sdfecs if they were still running
+            for fec in self.sdfecs:
+                fec.stop()
+
+            # Potentially upload new code to decoder
             if self.loaded_code != task.code_id:
                 dbg_msg("Loading new code ...")
                 for fec in self.sdfecs:
                     dbg_msg(f"Pre-Task SDFEC state: {fec.state}")
                     fec.set_ldpc_code(code)
 
-            for ber in self.ber_testers:
-                dbg_msg(f"Pre-Task BER enable: {ber.enable}")
-                ber.max_iterations = task.max_iterations
-                ber.n = code.n
-                ber.k = code.k
-
             self.loaded_code = task.code_id
 
+            # Result stats
             result_bers = []
             result_speeds = []
             result_finished_blocks = []
@@ -139,10 +152,13 @@ class Worker:
 
             task.state = "RUNNING"
 
+            # Start going through the snrs
             for snr,snr_scale in zip(task.snrs, task.snr_scales):
+                # Enable interfaces on the sdfec blocks
                 for fec in self.sdfecs:
                     fec.start()
 
+                # Configure and start ber testers
                 start_time = time.time()
                 for ber in self.ber_testers:
                     ber.snr_scale = snr_scale
@@ -157,15 +173,14 @@ class Worker:
                     remaining_time = start_time + task.term_time - time.time()
                     passed_time = time.time() - start_time
 
+                    # Wait until one of the termination criteria is asserted
                     if total_errors > task.term_errors or remaining_time <= 0:
                         break
 
                     dbg_msg(f"Running - Status:")
                     dbg_msg(f"Current BER: {self.get_ber()}")
 
-                    # Update ETA & Progress
-
-                    # Inter SNR progress
+                    # Update ETA & progress
                     iprogress = max(total_errors / task.term_errors, passed_time / task.term_time)
                     task.progress = (i+iprogress) / len(task.snrs)
                     eta = (len(task.snrs)-1-i) * task.term_time
@@ -173,7 +188,7 @@ class Worker:
                         task.eta = eta + remaining_time
                     else:
                         task.eta = eta + min(remaining_time, (task.term_errors - total_errors) / (total_errors / passed_time))
-                    
+
                     if self.debug:
                         for ber in self.ber_testers:
                             dbg_msg(f" - FEC {ber.core_id}")
@@ -184,18 +199,22 @@ class Worker:
 
                     time.sleep(1)
 
+                # Disable ber cores - they will allow the current transaction to complete
                 for ber in self.ber_testers:
                     ber.enable = False
 
+                # We cannot leave any unprocessed samples in the piplines, thus we wait for all decoders to be idle
                 while any([fec.active for fec in self.sdfecs]):
                     dbg_msg("Waiting for SDFECs to finish ...")
                     time.sleep(1)
 
                 dbg_msg("Done!")
 
+                # Finally, shutdown sdfec cores
                 for fec in self.sdfecs:
                     fec.stop()
 
+                # Calculate final stats
                 stop_time = time.time()
 
                 current_ber = self.get_ber()
@@ -214,6 +233,8 @@ class Worker:
 
                 i += 1
 
+                # We do not want to leave this loop before the proper teardown
+                # has occurred, thus the cancellation check is down here
                 if task.task_id in self.cancelled_tasks:
                     break
 
@@ -229,6 +250,7 @@ class Worker:
 
             self.current_task = None
 
+            # Construct and submit result
             result = TaskResult(
                     task_id=task.task_id,
                     success=True,
