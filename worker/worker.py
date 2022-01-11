@@ -297,7 +297,7 @@ class Worker:
         ret = {
                 "name": self.config["name"],
                 "running": self.running,
-                "current_task": self.current_task.task_id
+                "current_task": self.current_task.task_id if self.current_task else None
                 }
 
         ret["loaded_code"] = self.loaded_code
