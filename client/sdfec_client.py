@@ -17,9 +17,18 @@ def parse_yaml(x):
     with open(x, "r") as f:
         data = yaml.safe_load(f)
 
-    data["sc_table"] = [int(v) for v in data["sc_table"].strip().split(" ") if len(v) > 0]
-    data["la_table"] = [int(v) for v in data["la_table"].strip().split(" ") if len(v) > 0]
-    data["qc_table"] = [int(v) for v in data["qc_table"].strip().split(" ") if len(v) > 0]
+    def parse_array(v):
+        if isinstance(v, int):
+            return [v]
+
+        if isinstance(v, str):
+            return [int(i) for i in v.strip().split(" ") if len(i) > 0]
+
+        raise RuntimeError("Failed to process table:", v)
+
+    data["sc_table"] = parse_array(data["sc_table"])
+    data["la_table"] = parse_array(data["la_table"])
+    data["qc_table"] = parse_array(data["qc_table"])
     
     return data
 
