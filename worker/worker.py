@@ -24,7 +24,7 @@ class SimulationTask:
         self.max_iterations = max_iterations
 
         self.task_id = hashlib.md5(f"{self.code_id}, {self.snrs}, {self.snr_scales}, "
-            "{self.term_time}, {self.term_errors}, {self.max_iterations}".encode("UTF-8")).hexdigest()
+            f"{self.term_time}, {self.term_errors}, {self.max_iterations}".encode("UTF-8")).hexdigest()
 
         self.eta = self.term_time * len(self.snrs)
         self.progress = 0
