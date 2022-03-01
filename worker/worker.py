@@ -183,6 +183,11 @@ class Worker:
                     remaining_time = start_time + task.term_time - time.time()
                     passed_time = time.time() - start_time
 
+                    # Collect information about failed blocks
+                    if task.collect_last_failed > 0:
+                        for ber in self.ber_testers:
+                            ber.collect_last_failed(limit=task.collect_last_failed)
+
                     # Wait until one of the termination criteria is asserted
                     if total_errors > task.term_errors or remaining_time <= 0:
                         break
@@ -198,10 +203,6 @@ class Worker:
                         task.eta = eta + remaining_time
                     else:
                         task.eta = eta + min(remaining_time, (task.term_errors - total_errors) / (total_errors / passed_time))
-
-                    if task.collect_last_failed > 0:
-                        for ber in self.ber_testers:
-                            ber.collect_last_failed(limit=task.collect_last_failed)
 
                     if self.debug:
                         for ber in self.ber_testers:
