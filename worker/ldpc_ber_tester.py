@@ -28,6 +28,10 @@ class LDPCBERTester:
         self.core_id = self._read("core_id")
         self.magic = self._read("magic")
 
+        # Last failed array, initialized to be empty
+        self.last_failed = []
+        self._collect_errors = False
+
         # SNR
         self._snr = 0
         self._snr_scale = 1
@@ -89,7 +93,7 @@ class LDPCBERTester:
 
     @snr_scale.setter
     def snr_scale(self, val: float):
-        assert 0 < val <= 10 
+        assert 0 < val <= 10
         self._snr_scale = val
         self._update_snr()
 
@@ -135,11 +139,71 @@ class LDPCBERTester:
         return self._read("in_flight")
 
     @property
+    def iter_count(self):
+        return self._read("iter_count")
+
+    @property
+    def failed_blocks(self):
+        return self._read("failed_blocks")
+
+    @property
+    def int_status(self):
+        return self._read("int_status")
+
+    @property
+    def int_enable(self):
+        return self._read("int_enable")
+
+    @int_enable.setter
+    def int_enable(self, val: int):
+        self._write("int_enable", int(val))
+
+    @property
     def last_status(self):
         return self._read("last_status")
 
+    @property
+    def collect_errors(self):
+        return self._collect_errors
+
+    @collect_errors.setter
+    def collect_errors(self, val: bool)
+        self._collect_errors = bool(val)
+        self._write("int_enable", int(val))
+
+    def collect_last_failed(self, limit=1024):
+        if not self._collect_errors:
+            return []
+
+        path = f"{self.base_path}/last_failed"
+        vals = []
+
+        while len(self.last_failed) + len(vals) < limit:
+            with open(path, "r") as f:
+                data = f.read().strip()
+
+            if len(data) == 0:
+                break
+
+            lines = data.split("\n")
+            for v in lines:
+                vals.append(int(v))
+
+            with open(path, "w") as f:
+                f.write(f"{len(vals)}")
+
+            if len(lines) < 32:
+                break
+
+        if len(self.last_failed) + len(vals) >= limit:
+            self.collect_errors = False
+
+        self.last_failed += vals
+
     def reset(self):
         self._write("control_resetn", 0)
+        self.collect_last_failed()
+        self.vals = []
 
     def _read(self, name):
         path = f"{self.base_path}/{name}"

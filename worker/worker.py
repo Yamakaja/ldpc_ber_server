@@ -11,7 +11,7 @@ from ldpc_ber_tester import LDPCBERTester
 
 class SimulationTask:
 
-    def __init__(self, code_id, snrs, snr_scales=[], term_time=60, term_errors=1000, max_iterations=8):
+    def __init__(self, code_id, snrs, snr_scales=[], term_time=60, term_errors=1000, max_iterations=8, collect_last_failed=0):
         self.code_id = code_id
         self.snrs = snrs
         self.snr_scales = snr_scales
@@ -23,8 +23,11 @@ class SimulationTask:
         self.term_errors = term_errors
         self.max_iterations = max_iterations
 
+        self.collect_last_failed = collect_last_failed
+
         self.task_id = hashlib.md5(f"{self.code_id}, {self.snrs}, {self.snr_scales}, "
-            f"{self.term_time}, {self.term_errors}, {self.max_iterations}".encode("UTF-8")).hexdigest()
+            f"{self.term_time}, {self.term_errors}, {self.max_iterations}, "
+            f"{self.collect_last_failed}".encode("UTF-8")).hexdigest()
 
         self.eta = self.term_time * len(self.snrs)
         self.progress = 0
@@ -36,7 +39,7 @@ class SimulationTask:
 
 class TaskResult:
 
-    def __init__(self, task_id, success: bool, message: str = "", snrs=[], bers=[], speeds=[], finished_blocks=[], bit_errors=[]):
+    def __init__(self, task_id, success: bool, message: str = "", snrs=[], bers=[], speeds=[], finished_blocks=[], bit_errors=[], avg_iterations=[], failed_blocks=[], last_failed=[]):
         self.task_id = task_id
         self.success = success
 
@@ -46,6 +49,9 @@ class TaskResult:
         self.speeds = speeds
         self.finished_blocks = finished_blocks
         self.bit_errors = bit_errors
+        self.avg_iterations = avg_iterations
+        self.failed_blocks = failed_blocks
+        self.last_failed = last_failed
 
     def __repr__(self):
         return str(self.__dict__)
@@ -144,6 +150,9 @@ class Worker:
             result_speeds = []
             result_finished_blocks = []
             result_bit_errors = []
+            result_avg_iterations = []
+            result_failed_blocks = []
+            result_last_failed = []
 
             self.current_task = task
             task.progress = 0
@@ -163,6 +172,7 @@ class Worker:
                 for ber in self.ber_testers:
                     ber.snr_scale = snr_scale
                     ber.snr = snr
+                    ber.collect_errors = task.collect_last_failed > 0
                     ber.enable = True
 
                 while True:
@@ -188,6 +198,11 @@ class Worker:
                         task.eta = eta + remaining_time
                     else:
                         task.eta = eta + min(remaining_time, (task.term_errors - total_errors) / (total_errors / passed_time))
+
+                    if task.collect_last_failed > 0:
+                        for ber in self.ber_testers:
+                            ber.collect_last_failed(limit=task.collect_last_failed)
+
 
                     if self.debug:
                         for ber in self.ber_testers:
@@ -222,11 +237,25 @@ class Worker:
 
                 result_bers.append(current_ber)
 
-                finished_blocks = sum([ber.finished_blocks for ber in self.ber_testers])
-                bit_errors = sum([ber.bit_errors for ber in self.ber_testers])
+                runtime_stats = np.array([
+                    [
+                        ber.finished_blocks,
+                        ber.bit_errors,
+                        ber.iter_count,
+                        ber.failed_blocks
+                    ] for ber in self.ber_testers], dtype=np.int64).sum(axis=0)
+
+                finished_blocks = runtime_stats[0]
+                bit_errors = runtime_stats[1]
+                iter_count = runtime_stats[2]
+                failed_blocks = runtime_stats[3]
+
                 result_speeds.append(code.n * finished_blocks / (stop_time - start_time))
                 result_finished_blocks.append(finished_blocks)
                 result_bit_errors.append(bit_errors)
+                result_avg_iterations.append(iter_count / finished_blocks)
+                result_failed_blocks.append(failed_blocks)
+                result_last_failed.append([ber.last_failed for ber in self.ber_testers])
 
                 for ber in self.ber_testers:
                     ber.reset()
@@ -259,7 +288,10 @@ class Worker:
                     bers=result_bers,
                     speeds=result_speeds,
                     finished_blocks=result_finished_blocks,
-                    bit_errors=result_bit_errors)
+                    bit_errors=result_bit_errors,
+                    avg_iterations=result_avg_iterations,
+                    failed_blocks=result_failed_blocks,
+                    last_failed=result_last_failed)
 
             self.results[task.task_id] = result
 
