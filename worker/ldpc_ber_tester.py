@@ -167,9 +167,18 @@ class LDPCBERTester:
         return self._collect_errors
 
     @collect_errors.setter
-    def collect_errors(self, val: bool)
+    def collect_errors(self, val: bool):
         self._collect_errors = bool(val)
         self._write("int_enable", int(val))
+
+    def reset_last_failed(self):
+        self.last_failed = []
+        path = f"{self.base_path}/last_failed"
+
+        self.collect_errors = False
+
+        with open(path, "w") as f:
+            f.write(f"1030\n")
 
     def collect_last_failed(self, limit=1024):
         if not self._collect_errors:
@@ -186,21 +195,25 @@ class LDPCBERTester:
                 break
 
             lines = data.split("\n")
+            print(f"Got data: {len(lines)}")
             for v in lines:
                 vals.append(int(v))
 
             with open(path, "w") as f:
-                f.write(f"{len(vals)}")
+                f.write(f"{len(lines)}\n")
+                f.flush()
 
             if len(lines) < 32:
                 break
 
-        if len(self.last_failed) + len(vals) >= limit:
-            self.collect_errors = False
-
         self.last_failed += vals
 
+        if len(self.last_failed) >= limit:
+            print("Got enough data, resetting!")
+            self.reset_last_failed()
+
     def reset(self):
+        self.reset_last_failed()
         self._write("control_resetn", 0)
         self.collect_last_failed()
         self.vals = []

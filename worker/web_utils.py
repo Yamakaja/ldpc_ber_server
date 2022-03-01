@@ -2,6 +2,7 @@
 
 import json
 import sdfec
+import numpy as np
 from worker import TaskResult,SimulationTask
 
 from flask import Response
@@ -14,6 +15,8 @@ class SDFECJsonEncoder(json.JSONEncoder):
             return o.__dict__
         if type(o) in [sdfec.xsdfec_state]:
             return repr(o)
+        if type(o) in [np.int, np.int32, np.int64]:
+            return int(o)
         return json.JSONEncoder.default(self, o)
 
 def jsonify(o, code=200):

@@ -203,7 +203,6 @@ class Worker:
                         for ber in self.ber_testers:
                             ber.collect_last_failed(limit=task.collect_last_failed)
 
-
                     if self.debug:
                         for ber in self.ber_testers:
                             dbg_msg(f" - FEC {ber.core_id}")
