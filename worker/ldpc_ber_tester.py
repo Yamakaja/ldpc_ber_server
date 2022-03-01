@@ -168,8 +168,8 @@ class LDPCBERTester:
 
     @collect_errors.setter
     def collect_errors(self, val: bool):
-        self._collect_errors = bool(val)
-        self._write("int_enable", int(val))
+        self._collect_errors = val
+        self._write("collect_errors", int(val))
 
     def reset_last_failed(self):
         self.last_failed = []
@@ -195,6 +195,7 @@ class LDPCBERTester:
                 break
 
             lines = data.split("\n")
+            print(f"Got data: {len(lines)}")
             for v in lines:
                 vals.append(int(v))
 
