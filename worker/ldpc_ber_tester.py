@@ -195,7 +195,6 @@ class LDPCBERTester:
                 break
 
             lines = data.split("\n")
-            print(f"Got data: {len(lines)}")
             for v in lines:
                 vals.append(int(v))
 
@@ -209,7 +208,7 @@ class LDPCBERTester:
         self.last_failed += vals
 
         if len(self.last_failed) >= limit:
-            self.reset_last_failed()
+            self.collect_errors = False
 
     def reset(self):
         self.reset_last_failed()
