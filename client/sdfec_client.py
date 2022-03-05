@@ -24,6 +24,9 @@ def parse_yaml(x):
         if isinstance(v, str):
             return [int(i) for i in v.strip().split(" ") if len(i) > 0]
 
+        if isinstance(v, list) and isinstance(v[0], int):
+            return v
+
         raise RuntimeError("Failed to process table:", v)
 
     data["sc_table"] = parse_array(data["sc_table"])
@@ -138,7 +141,7 @@ class SDFECClient:
     def add_code(self, code):
         return self._put(f"code", code)["id"]
 
-    def simulate(self, code_id, snrs, snr_scales=[], term_time=60, term_errors=1000, max_iterations=8):
+    def simulate(self, code_id, snrs, snr_scales=[], term_time=60, term_errors=1000, max_iterations=8, collect_last_failed=0):
         if len(snr_scales) == 0:
             snr_scales = [1.0] * len(snrs)
 
@@ -148,7 +151,8 @@ class SDFECClient:
                 "snr_scales": list(snr_scales),
                 "term_time": term_time,
                 "term_errors": term_errors,
-                "max_iterations": max_iterations
+                "max_iterations": max_iterations,
+                "collect_last_failed": collect_last_failed
                 }
 
         return SDFECTask(self, self._put("task", req)["id"])
