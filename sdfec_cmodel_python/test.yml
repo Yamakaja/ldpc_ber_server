@@ -1,0 +1,148 @@
+# LDPC parity check matrix specification
+# o The following parity check matrix is used by DOCSIS v3.1 PHY Sublayer for OFDM, rate 85% (Section 7.4.4.2 of CM-SP-PHYv3.1)
+n: 5940               # Block size
+k: 5040               # Info bits
+p: 180                # Sub-matrix size
+normalization: row    # Normalization type (optional): 
+                      #  o Default: row
+                      #  o One of:
+                      #   - none   = Normalization factor of 1
+                      #   - row    = Applied based on layer (or row). Variable node to check node message scaling.
+scale: 12             # Normalization factor (optional) = scale * 0625. 
+                      #  o Default        : 12 (0.75)
+                      #  o Single value   : Used for all layer
+                      #  o Per layer(row) : List of values one per layer(row)
+no_packing: false     # Disable the packing of QC operations irrespective of sub-matrix size (p)
+encode: false         # Indicates the code will only be used for Encode and the stall calculation can be relaxed
+sm_array:             # Base matrix definition: Row, column and sub-matrix shift (rotation).
+  - {row: 0, col: 0, shift: 142}
+  - {row: 0, col: 1, shift: 158}
+  - {row: 0, col: 2, shift: 113}
+  - {row: 0, col: 3, shift: 124}
+  - {row: 0, col: 4, shift: 92}
+  - {row: 0, col: 5, shift: 44}
+  - {row: 0, col: 6, shift: 93}
+  - {row: 0, col: 7, shift: 70}
+  - {row: 0, col: 8, shift: 172}
+  - {row: 0, col: 9, shift: 3}
+  - {row: 0, col: 10, shift: 25}
+  - {row: 0, col: 11, shift: 44}
+  - {row: 0, col: 12, shift: 141}
+  - {row: 0, col: 13, shift: 160}
+  - {row: 0, col: 14, shift: 50}
+  - {row: 0, col: 15, shift: 45}
+  - {row: 0, col: 16, shift: 118}
+  - {row: 0, col: 17, shift: 84}
+  - {row: 0, col: 19, shift: 64}
+  - {row: 0, col: 20, shift: 66}
+  - {row: 0, col: 21, shift: 97}
+  - {row: 0, col: 22, shift: 1}
+  - {row: 0, col: 23, shift: 115}
+  - {row: 0, col: 24, shift: 8}
+  - {row: 0, col: 25, shift: 108}
+  - {row: 0, col: 28, shift: 22}
+  - {row: 1, col: 0, shift: 54}
+  - {row: 1, col: 1, shift: 172}
+  - {row: 1, col: 2, shift: 145}
+  - {row: 1, col: 3, shift: 28}
+  - {row: 1, col: 4, shift: 55}
+  - {row: 1, col: 5, shift: 19}
+  - {row: 1, col: 6, shift: 159}
+  - {row: 1, col: 7, shift: 22}
+  - {row: 1, col: 8, shift: 96}
+  - {row: 1, col: 9, shift: 12}
+  - {row: 1, col: 10, shift: 85}
+  - {row: 1, col: 12, shift: 128}
+  - {row: 1, col: 13, shift: 5}
+  - {row: 1, col: 14, shift: 158}
+  - {row: 1, col: 15, shift: 120}
+  - {row: 1, col: 16, shift: 51}
+  - {row: 1, col: 17, shift: 171}
+  - {row: 1, col: 18, shift: 65}
+  - {row: 1, col: 19, shift: 141}
+  - {row: 1, col: 21, shift: 42}
+  - {row: 1, col: 22, shift: 83}
+  - {row: 1, col: 23, shift: 7}
+  - {row: 1, col: 25, shift: 39}
+  - {row: 1, col: 26, shift: 121}
+  - {row: 1, col: 27, shift: 84}
+  - {row: 1, col: 28, shift: 101}
+  - {row: 1, col: 29, shift: 171}
+  - {row: 2, col: 0, shift: 63}
+  - {row: 2, col: 1, shift: 11}
+  - {row: 2, col: 2, shift: 112}
+  - {row: 2, col: 3, shift: 114}
+  - {row: 2, col: 4, shift: 61}
+  - {row: 2, col: 5, shift: 123}
+  - {row: 2, col: 6, shift: 72}
+  - {row: 2, col: 7, shift: 55}
+  - {row: 2, col: 8, shift: 114}
+  - {row: 2, col: 9, shift: 20}
+  - {row: 2, col: 10, shift: 53}
+  - {row: 2, col: 11, shift: 114}
+  - {row: 2, col: 12, shift: 42}
+  - {row: 2, col: 13, shift: 33}
+  - {row: 2, col: 14, shift: 4}
+  - {row: 2, col: 15, shift: 66}
+  - {row: 2, col: 16, shift: 163}
+  - {row: 2, col: 17, shift: 50}
+  - {row: 2, col: 18, shift: 46}
+  - {row: 2, col: 19, shift: 17}
+  - {row: 2, col: 20, shift: 175}
+  - {row: 2, col: 24, shift: 92}
+  - {row: 2, col: 26, shift: 41}
+  - {row: 2, col: 27, shift: 138}
+  - {row: 2, col: 29, shift: 34}
+  - {row: 2, col: 30, shift: 47}
+  - {row: 3, col: 0, shift: 28}
+  - {row: 3, col: 1, shift: 160}
+  - {row: 3, col: 2, shift: 102}
+  - {row: 3, col: 3, shift: 44}
+  - {row: 3, col: 4, shift: 8}
+  - {row: 3, col: 5, shift: 84}
+  - {row: 3, col: 6, shift: 126}
+  - {row: 3, col: 7, shift: 9}
+  - {row: 3, col: 8, shift: 169}
+  - {row: 3, col: 9, shift: 174}
+  - {row: 3, col: 10, shift: 147}
+  - {row: 3, col: 11, shift: 24}
+  - {row: 3, col: 12, shift: 145}
+  - {row: 3, col: 14, shift: 26}
+  - {row: 3, col: 18, shift: 67}
+  - {row: 3, col: 19, shift: 82}
+  - {row: 3, col: 20, shift: 4}
+  - {row: 3, col: 21, shift: 177}
+  - {row: 3, col: 22, shift: 151}
+  - {row: 3, col: 23, shift: 131}
+  - {row: 3, col: 24, shift: 139}
+  - {row: 3, col: 25, shift: 117}
+  - {row: 3, col: 26, shift: 36}
+  - {row: 3, col: 27, shift: 18}
+  - {row: 3, col: 30, shift: 23}
+  - {row: 3, col: 31, shift: 8}
+  - {row: 4, col: 0, shift: 52}
+  - {row: 4, col: 1, shift: 159}
+  - {row: 4, col: 2, shift: 75}
+  - {row: 4, col: 3, shift: 74}
+  - {row: 4, col: 4, shift: 46}
+  - {row: 4, col: 5, shift: 71}
+  - {row: 4, col: 6, shift: 42}
+  - {row: 4, col: 7, shift: 11}
+  - {row: 4, col: 8, shift: 108}
+  - {row: 4, col: 9, shift: 153}
+  - {row: 4, col: 11, shift: 72}
+  - {row: 4, col: 13, shift: 163}
+  - {row: 4, col: 15, shift: 9}
+  - {row: 4, col: 16, shift: 2}
+  - {row: 4, col: 17, shift: 168}
+  - {row: 4, col: 18, shift: 158}
+  - {row: 4, col: 20, shift: 1}
+  - {row: 4, col: 21, shift: 49}
+  - {row: 4, col: 22, shift: 89}
+  - {row: 4, col: 23, shift: 63}
+  - {row: 4, col: 24, shift: 179}
+  - {row: 4, col: 25, shift: 10}
+  - {row: 4, col: 26, shift: 75}
+  - {row: 4, col: 27, shift: 161}
+  - {row: 4, col: 31, shift: 177}
+  - {row: 4, col: 32, shift: 19}
