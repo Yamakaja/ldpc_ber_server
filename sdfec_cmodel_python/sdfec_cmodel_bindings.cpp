@@ -1,4 +1,5 @@
 #include "sdfec_cmodel.h"
+#include "xoroshiro128plus.h"
 
 #include <pybind11/buffer_info.h>
 #include <pybind11/numpy.h>
@@ -6,6 +7,8 @@
 #include <pybind11/stl.h>
 
 #include <boost/format.hpp>
+
+#include <array>
 #include <cstring>
 
 namespace py = pybind11;
@@ -234,4 +237,31 @@ PYBIND11_MODULE(sdfec_cmodel, m)
 
     XIP_ARRAY_BINDINGS(real);
     XIP_ARRAY_BINDINGS(bit);
+
+    py::class_<xoroshiro128plus_t, std::shared_ptr<xoroshiro128plus_t>>(m, "xoroshiro128plus")
+        .def(py::init([](uint64_t seed) {
+                 auto xoro = std::make_shared<xoroshiro128plus_t>();
+                 xoroshiro128plus_init(xoro.get(), seed);
+                 return xoro;
+             }),
+             "seed"_a)
+        .def(py::init([](uint64_t s_0, uint64_t s_1) {
+                 auto xoro = std::make_shared<xoroshiro128plus_t>();
+                 xoro->s[0] = s_0;
+                 xoro->s[1] = s_1;
+                 return xoro;
+             }),
+             "s_0"_a,
+             "s_1"_a)
+        .def("next", [](std::shared_ptr<xoroshiro128plus_t> self) { return xoroshiro128plus_next(self.get()); })
+        .def(
+            "forward",
+            [](std::shared_ptr<xoroshiro128plus_t> self, uint64_t steps) {
+                return xoroshiro128plus_forward(self.get(), steps);
+            },
+            "steps"_a)
+        .def("jump", [](std::shared_ptr<xoroshiro128plus_t> self) { xoroshiro128plus_jump(self.get()); })
+        .def_property_readonly("s", [](std::shared_ptr<xoroshiro128plus_t> self) {
+            return std::array<uint64_t, 2>({ self->s[0], self->s[1] });
+        });
 };

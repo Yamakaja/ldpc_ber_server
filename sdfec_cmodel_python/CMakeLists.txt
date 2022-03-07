@@ -10,7 +10,9 @@ find_package(pybind11 REQUIRED)
 
 pybind11_add_module(sdfec_cmodel
     sdfec_cmodel.cpp
-    sdfec_cmodel_bindings.cpp)
+    sdfec_cmodel_bindings.cpp
+    xoroshiro128plus.c
+    xoroshiro128plus_matrices.c)
 
 target_link_directories(sdfec_cmodel PRIVATE "${SDFEC_CMODEL_DIR}")
 target_include_directories(sdfec_cmodel PRIVATE "${SDFEC_CMODEL_DIR}")

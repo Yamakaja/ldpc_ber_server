@@ -21,7 +21,6 @@ struct qc_table_contents {
 };
 }; // namespace
 
-
 namespace sdfec_cmodel {
 
 ldpc_parameter_wrapper::~ldpc_parameter_wrapper() { xip_sd_fec_v1_1_destroy_ldpc_params(&params, nullptr, nullptr); }
