@@ -3,9 +3,11 @@
 
 #ifdef __cplusplus
 #include <cstdint>
+#include <cstdlib>
 extern "C" {
 #else
 #include <stdint.h>
+#include <stdlib.h>
 #endif
 
 typedef struct xoroshiro128plus_t {
@@ -13,7 +15,9 @@ typedef struct xoroshiro128plus_t {
     uint64_t x; // Splitmix state
 } xoroshiro128plus_t;
 
-extern uint64_t xoro_base_matrices[64][256];
+extern const uint64_t xoro_base_matrices[64][256];
+
+extern const uint64_t xoro_jump_polynomials[101][2];
 
 uint64_t xoroshiro128plus_next(xoroshiro128plus_t *);
 

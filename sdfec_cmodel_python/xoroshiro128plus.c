@@ -17,11 +17,46 @@ void xoroshiro128plus_jump(xoroshiro128plus_t* state)
                 s0 ^= state->s[0];
                 s1 ^= state->s[1];
             }
+
             xoroshiro128plus_next(state);
         }
 
     state->s[0] = s0;
     state->s[1] = s1;
+}
+
+static void xoroshiro128plus_polyjump_pow2(xoroshiro128plus_t* state, size_t i)
+{
+    const uint64_t *JUMP = xoro_jump_polynomials[i];
+
+    uint64_t s0 = 0;
+    uint64_t s1 = 0;
+    for (uint64_t i = 0; i < 2; i++)
+        for (int b = 0; b < 64; b++) {
+            if (JUMP[i] & UINT64_C(1) << b) {
+                s0 ^= state->s[0];
+                s1 ^= state->s[1];
+            }
+            xoroshiro128plus_next(state);
+        }
+
+    state->s[0] = s0;
+    state->s[1] = s1;
+}
+
+void xoroshiro128plus_forward(xoroshiro128plus_t *state, uint64_t amount)
+{
+    if (amount & 1)
+        xoroshiro128plus_next(state);
+
+    amount >>= 1;
+
+    for (size_t i = 1; i < 64 && amount; i++) {
+        if (amount & 1)
+            xoroshiro128plus_polyjump_pow2(state, i);
+
+        amount >>= 1;
+    }
 }
 
 uint64_t xoroshiro128plus_next(xoroshiro128plus_t* state)
@@ -35,44 +70,6 @@ uint64_t xoroshiro128plus_next(xoroshiro128plus_t* state)
     state->s[1] = rotl(s1, 37);                   // c
 
     return result;
-}
-
-static uint64_t xoroshiro128plus_matjump(xoroshiro128plus_t* state, int id)
-{
-    uint64_t s0 = state->s[0], s1 = state->s[1];
-    uint64_t ns0 = 0, ns1 = 0;
-    uint64_t *mat = xoro_base_matrices[id];
-
-    for (int i = 0; i < 64; i++)
-        ns0 |= ((__builtin_popcountl(mat[2 * i + 1] & s1) +
-                 __builtin_popcountl(mat[2 * i] & s0)) &
-                1UL)
-               << i;
-
-    for (int i = 64; i < 128; i++)
-        ns1 |= ((__builtin_popcountl(mat[2 * i + 1] & s1) +
-                 __builtin_popcountl(mat[2 * i] & s0)) &
-                1UL)
-               << (i - 64);
-
-    state->s[0] = ns0;
-    state->s[1] = ns1;
-
-    return s0 + s1;
-}
-
-void xoroshiro128plus_forward(xoroshiro128plus_t *state, uint64_t steps) {
-    if (steps & 1)
-        xoroshiro128plus_next(state);
-
-    steps >>= 1;
-
-    for (int i = 1; i < 64 && steps; i++) {
-        if (steps & 0x1)
-            xoroshiro128plus_matjump(state, i);
-
-        steps >>= 1;
-    }
 }
 
 void xoroshiro128plus_init(xoroshiro128plus_t* state, uint64_t seed)
