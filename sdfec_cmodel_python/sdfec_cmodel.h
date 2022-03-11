@@ -81,6 +81,8 @@ struct sdfec_core {
 
     int get_num_loaded_ldpc_codes();
 
+    std::shared_ptr<XIP_LDPC_PARAMS> get_code(unsigned int id);
+
     std::tuple<std::shared_ptr<xip_array_bit>, std::shared_ptr<xip_array_real>, std::shared_ptr<XIP_LDPC_STAT>>
     process(std::shared_ptr<XIP_LDPC_CTRL> ctrl, std::shared_ptr<xip_array_real> data);
 };

@@ -1,3 +1,4 @@
+#include "ldpc_ber_tester.h"
 #include "sdfec_cmodel.h"
 #include "xoroshiro128plus.h"
 
@@ -12,6 +13,7 @@
 #include <cstring>
 
 namespace py = pybind11;
+using sdfec_cmodel::ldpc_ber_tester;
 using sdfec_cmodel::ldpc_parameter_wrapper;
 using sdfec_cmodel::sdfec_core;
 
@@ -264,4 +266,28 @@ PYBIND11_MODULE(sdfec_cmodel, m)
         .def_property_readonly("s", [](std::shared_ptr<xoroshiro128plus_t> self) {
             return std::array<uint64_t, 2>({ self->s[0], self->s[1] });
         });
+
+    py::class_<ldpc_ber_tester, std::shared_ptr<ldpc_ber_tester>>(m, "ldpc_ber_tester")
+        .def(py::init([](uint64_t seed_base, std::shared_ptr<sdfec_core> core, uint64_t init_flush) {
+                 return std::make_shared<ldpc_ber_tester>(seed_base, core, init_flush);
+             }),
+             "seed_base"_a,
+             "sdfec_core"_a,
+             "init_flush"_a = 45)
+        .def_property("snr", &ldpc_ber_tester::get_snr, &ldpc_ber_tester::set_snr)
+        .def_property("snr_scale", &ldpc_ber_tester::get_snr_scale, &ldpc_ber_tester::set_snr_scale)
+        .def_property_readonly("factor", &ldpc_ber_tester::get_factor)
+        .def_property_readonly("offset", &ldpc_ber_tester::get_offset)
+        .def_property_readonly("din_beats", &ldpc_ber_tester::get_din_beats)
+        .def("get_rnd_vector", &ldpc_ber_tester::get_rnd_vector, "block"_a, "idx"_a)
+        .def("get_gaussian_vector", &ldpc_ber_tester::get_gaussian_vector, "block"_a, "quantized"_a = false)
+        .def("simulate_block",
+             &ldpc_ber_tester::simulate_block,
+             "block"_a,
+             "hard_op"_a = true,
+             "code_id"_a = 0,
+             "max_iterations"_a = 32,
+             "output_parity_bits"_a = false,
+             "term_on_pass"_a = true,
+             "term_on_no_change"_a = false);
 };

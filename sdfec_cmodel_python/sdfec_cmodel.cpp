@@ -3,6 +3,7 @@
 #include <fmt/core.h>
 
 #include <string.h>
+#include <iostream>
 #include <memory>
 #include <vector>
 
@@ -135,7 +136,14 @@ sdfec_core::sdfec_core(std::string name,
     m_config.bypass = static_cast<xip_bit>(bypass);
     m_config.ip_quant_mode = static_cast<xip_uint>(quantization_mode);
 
-    m_fec_handle = xip_sd_fec_v1_1_create(&m_config, nullptr, nullptr);
+    // typedef void (*xip_msg_handler)(void* handle, int error, const char* msg);
+
+    m_fec_handle = xip_sd_fec_v1_1_create(
+        &m_config,
+        [](void*, int, const char* msg) {
+            std::cerr << msg << std::endl;
+        },
+        nullptr);
     if (!m_fec_handle)
         throw std::runtime_error("xip_sd_fec_v1_1_create(): Failed, returned nullptr.");
 }
@@ -168,62 +176,72 @@ void sdfec_core::set_turbo_params(uint32_t alg, uint32_t scale)
 int sdfec_core::get_num_loaded_ldpc_codes() { return xip_sd_fec_v1_1_get_num_ldpc_codes(m_fec_handle); }
 
 std::tuple<std::shared_ptr<xip_array_bit>, std::shared_ptr<xip_array_real>, std::shared_ptr<XIP_LDPC_STAT>>
-sdfec_core::process(std::shared_ptr<XIP_LDPC_CTRL> ctrl, std::shared_ptr<xip_array_real> data) {
+sdfec_core::process(std::shared_ptr<XIP_LDPC_CTRL> ctrl, std::shared_ptr<xip_array_real> data)
+{
     auto sd_out = std::shared_ptr<xip_array_real>(xip_array_real_create(), xip_array_deleter_real());
     auto hd_out = std::shared_ptr<xip_array_bit>(xip_array_bit_create(), xip_array_deleter_bit());
     auto status = std::make_shared<XIP_LDPC_STAT>();
 
-    xip_status ret = xip_sd_fec_v1_1_process(m_fec_handle,
-                                             ctrl.get(),
-                                             data.get(),
-                                             hd_out.get(),
-                                             sd_out.get(),
-                                             status.get());
+    xip_status ret =
+        xip_sd_fec_v1_1_process(m_fec_handle, ctrl.get(), data.get(), hd_out.get(), sd_out.get(), status.get());
 
     if (ret == XIP_STATUS_ERROR)
         throw std::runtime_error("Decoder failed to handle request, check your configuration!");
 
-    return {hd_out, sd_out, status};
+    return { hd_out, sd_out, status };
+}
+
+std::shared_ptr<XIP_LDPC_PARAMS> sdfec_core::get_code(unsigned int id)
+{
+    auto ldpc_params = std::make_shared<XIP_LDPC_PARAMS>();
+
+    XIP_LDPC_CTRL ctrl{};
+    ctrl.id = id;
+
+    xip_status ret = xip_sd_fec_v1_1_get_ldpc_params(m_fec_handle, &ctrl, ldpc_params.get());
+    if (ret == XIP_STATUS_ERROR)
+        throw std::runtime_error(fmt::format("Failed to get code {} from sdfec core!", id));
+
+    return ldpc_params;
 }
 
 std::string ctrl_packet_to_string(const std::shared_ptr<XIP_LDPC_CTRL> self)
 {
-    return fmt::format("ctrl_packet(code = {}, op = {}, z_j = {}, z_set = {}, bg = {}, sc_idx = {}, mb = {}, hard_op = {}, "
-                       "include_parity_op = {}, "
-                       "crc_type = {}, term_on_pass = {}, term_on_no_change = {}, max_iterations = {})",
-                       self->code,
-                       self->op,
-                       self->z_j,
-                       self->z_set,
-                       self->bg,
-                       self->sc_idx,
-                       self->mb,
-                       self->hard_op,
-                       self->include_parity_op,
-                       self->crc_type,
-                       self->term_on_pass,
-                       self->term_on_no_change,
-                       self->max_iterations);
+    return fmt::format(
+        "ctrl_packet(code = {}, op = {}, z_j = {}, z_set = {}, bg = {}, sc_idx = {}, mb = {}, hard_op = {}, "
+        "include_parity_op = {}, crc_type = {}, term_on_pass = {}, term_on_no_change = {}, max_iterations = {})",
+        self->code,
+        self->op,
+        self->z_j,
+        self->z_set,
+        self->bg,
+        self->sc_idx,
+        self->mb,
+        self->hard_op,
+        self->include_parity_op,
+        self->crc_type,
+        self->term_on_pass,
+        self->term_on_no_change,
+        self->max_iterations);
 }
 
 std::string status_packet_to_string(const std::shared_ptr<XIP_LDPC_STAT> self)
 {
-    return fmt::format(
-        "status_packet(code = {}, op = {}, crc_type = {}, z_j = {}, z_set = {}, bg = {}, mb = {}, hard_op = {}, pass = {}, "
-        "term_pass = {}, term_no_change = {}, dec_iter = {}, id = {})",
-        self->code,
-        self->op,
-        self->crc_type,
-        self->z_j,
-        self->z_set,
-        self->bg,
-        self->mb,
-        self->hard_op,
-        self->pass,
-        self->term_pass,
-        self->term_no_change,
-        self->dec_iter,
-        self->id);
+    return fmt::format("status_packet(code = {}, op = {}, crc_type = {}, z_j = {}, z_set = {}, bg = {}, mb = {}, "
+                       "hard_op = {}, passed = {}, term_pass = {}, term_no_change = {}, dec_iter = {}, id = {})",
+                       self->code,
+                       self->op,
+                       self->crc_type,
+                       self->z_j,
+                       self->z_set,
+                       self->bg,
+                       self->mb,
+                       self->hard_op,
+                       self->pass,
+                       self->term_pass,
+                       self->term_no_change,
+                       self->dec_iter,
+                       self->id);
 }
 
 std::shared_ptr<XIP_LDPC_CTRL> make_ctrl_packet(xip_uint code,
