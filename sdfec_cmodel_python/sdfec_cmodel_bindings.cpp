@@ -1,6 +1,7 @@
 #include "ldpc_ber_tester.h"
 #include "sdfec_cmodel.h"
 #include "xoroshiro128plus.h"
+#include "boxmuller.h"
 
 #include <pybind11/buffer_info.h>
 #include <pybind11/numpy.h>
@@ -281,6 +282,7 @@ PYBIND11_MODULE(sdfec_cmodel, m)
         .def_property_readonly("din_beats", &ldpc_ber_tester::get_din_beats)
         .def("get_rnd_vector", &ldpc_ber_tester::get_rnd_vector, "block"_a, "idx"_a)
         .def("get_gaussian_vector", &ldpc_ber_tester::get_gaussian_vector, "block"_a, "quantized"_a = false)
+        .def("get_bitexact_gaussian_vector", &ldpc_ber_tester::get_bitexact_gaussian_vector, "block"_a, "quantized"_a = false)
         .def("simulate_block",
              &ldpc_ber_tester::simulate_block,
              "block"_a,
@@ -290,4 +292,8 @@ PYBIND11_MODULE(sdfec_cmodel, m)
              "output_parity_bits"_a = false,
              "term_on_pass"_a = true,
              "term_on_no_change"_a = false);
+
+    m.def("test_boxmuller", &sdfec_cmodel::test_boxmuller);
+    m.def("bitexact_gaussian", &sdfec_cmodel::bitexact_gaussian, "u_0"_a, "u_1"_a, "u_2"_a);
+    m.def("gaussian", &sdfec_cmodel::gaussian, "u_0"_a, "u_1"_a, "u_2"_a);
 };

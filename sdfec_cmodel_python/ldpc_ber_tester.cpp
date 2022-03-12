@@ -25,8 +25,8 @@ void ldpc_ber_tester::update_snr()
     m_offset = -m_snr_scale;
     m_factor = m_snr_scale * sigma;
 
-    m_offset_q = std::round(m_offset * 4) / 4.0;
-    m_factor_q = std::round(m_factor * 256) / 256.0;
+    m_offset_q = fxpnt<6,2>(static_cast<int64_t>(std::round(m_offset * 4)));
+    m_factor_q = fxpnt<8,8>(static_cast<int64_t>(std::round(m_factor * 256)));
 }
 
 void ldpc_ber_tester::xoro_step(bool update_gaussians)
@@ -37,8 +37,10 @@ void ldpc_ber_tester::xoro_step(bool update_gaussians)
     if (++m_xoro_idx >= HISTORY_DEPTH)
         m_xoro_idx = 0;
 
-    if (update_gaussians)
+    if (update_gaussians) {
         get_gaussians(m_gaussians);
+        get_bitexact_gaussians(m_bitexact_gaussians);
+    }
 }
 
 uint64_t ldpc_ber_tester::get_past_value(size_t id, uint64_t offset)
@@ -138,25 +140,53 @@ int lzd(uint64_t x, int len)
     return i;
 }
 
-void gaussian(uint64_t u_0, uint64_t u_1, uint64_t u_2, double* out)
+
+} // namespace
+
+std::tuple<double, double> gaussian(uint64_t u_0, uint64_t u_1, uint64_t u_2)
 {
     double exp_e = lzd(u_0, 48) + 1.0;
     double e = 2 * (std::log(2.0) * exp_e - std::log(1.0 + u_2 * 4.656612873077393e-10));
 
     double f = std::sqrt(e);
 
-    out[0] = std::sin(2 * M_PI * u_1 * 1.52587890625e-05) * f;
-    out[1] = std::cos(2 * M_PI * u_1 * 1.52587890625e-05) * f;
+    return { std::sin(2 * M_PI * u_1 * 1.52587890625e-05) * f, std::cos(2 * M_PI * u_1 * 1.52587890625e-05) * f };
 }
-
-} // namespace
 
 void ldpc_ber_tester::get_gaussians(std::array<double, 16>& output)
 {
     for (int i = 0; i < 8; i++) {
         auto rnd = get_rnd(i);
-        gaussian(std::get<0>(rnd), std::get<1>(rnd), std::get<2>(rnd), &output[2 * i]);
+        auto out = gaussian(std::get<0>(rnd), std::get<1>(rnd), std::get<2>(rnd));
+        output[2 * i] = std::get<0>(out);
+        output[2 * i + 1] = std::get<1>(out);
     }
+}
+
+void ldpc_ber_tester::get_bitexact_gaussians(std::array<fxpnt<5,11>, 16>& output)
+{
+    for (int i = 0; i < 8; i++) {
+        auto rnd = get_rnd(i);
+        auto out = bitexact_boxmuller(std::get<0>(rnd), std::get<1>(rnd), std::get<2>(rnd));
+        output[2 * i] = std::get<0>(out);
+        output[2 * i + 1] = std::get<1>(out);
+    }
+}
+
+std::vector<double> ldpc_ber_tester::get_bitexact_gaussian_vector(uint64_t block, bool quantized)
+{
+    std::vector<double> values(m_code->n, 0.0);
+
+    skip_to_block(block);
+
+    for (size_t i = 0; i < m_din_beats; i++) {
+        for (size_t v = 0; v < 16 && 16 * i + v < m_code->n; v++)
+            values[16 * i + v] = quantized ? remap_llr(m_bitexact_gaussians[v]) : static_cast<double>(m_bitexact_gaussians[v]);
+
+        xoro_step(true);
+    }
+
+    return values;
 }
 
 std::vector<double> ldpc_ber_tester::get_gaussian_vector(uint64_t block, bool quantized)
@@ -184,12 +214,20 @@ double ldpc_ber_tester::quantize_llr(double x)
     double q = std::round(x * POW2(11)) / POW2(11); // 5.11
 
     // 5.11 * 8.8 = 13.19 -> 13.2
-    q = std::round((q * m_factor_q) * POW2(2)) / POW2(2);
+    q = std::round((q * m_factor_q.m_val) / POW2(6)) / POW2(2);
 
     // x.2 + x.2
-    q += m_offset_q;
+    q += m_offset_q.m_val / 4.0;
 
     return std::max(std::min(q, 7.5), -7.5);
+}
+
+double ldpc_ber_tester::remap_llr(fxpnt<5,11> x)
+{
+    fxpnt<13, 19> f = x * m_factor_q;
+    double v = static_cast<double>(f.round<13, 2>() + m_offset_q.extend<13,2>());
+
+    return std::max(std::min(v, 7.5), -7.5);
 }
 
 std::tuple<std::shared_ptr<xip_array_real>,
@@ -227,7 +265,7 @@ ldpc_ber_tester::simulate_block(uint64_t block,
 
     for (size_t i = 0; i < m_din_beats; i++) {
         for (int j = 0; j < 16 && i * 16 + j < m_code->n; j++)
-            src_array->data[16 * i + j] = quantize_llr(m_gaussians[j]);
+            src_array->data[16 * i + j] = remap_llr(m_bitexact_gaussians[j]);
 
         xoro_step(true);
     }

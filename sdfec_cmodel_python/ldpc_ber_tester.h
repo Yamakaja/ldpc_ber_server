@@ -2,6 +2,7 @@
 
 #include "sdfec_cmodel.h"
 #include "xoroshiro128plus.h"
+#include "boxmuller.h"
 
 #include <array>
 #include <cstdint>
@@ -38,10 +39,11 @@ class ldpc_ber_tester
     double m_factor = 0;
     double m_offset = 0;
 
-    double m_factor_q = 0;
-    double m_offset_q = 0;
+    fxpnt<8,8> m_factor_q{};
+    fxpnt<6,2> m_offset_q{};
 
     std::array<double, 16> m_gaussians;
+    std::array<fxpnt<5,11>, 16> m_bitexact_gaussians;
 
     size_t m_din_beats;
 
@@ -57,7 +59,11 @@ class ldpc_ber_tester
 
     void get_gaussians(std::array<double, 16>& output);
 
+    void get_bitexact_gaussians(std::array<fxpnt<5,11>, 16>& output);
+
     double quantize_llr(double x);
+
+    double remap_llr(fxpnt<5,11> x);
 
 public:
     ldpc_ber_tester(uint64_t seed_base, std::shared_ptr<sdfec_core> core, uint64_t init_flush = 45);
@@ -101,6 +107,10 @@ public:
     std::vector<std::tuple<uint64_t, uint64_t, uint64_t>> get_rnd_vector(uint64_t block, size_t idx);
 
     std::vector<double> get_gaussian_vector(uint64_t block, bool quantized = false);
+
+    std::vector<double> get_bitexact_gaussian_vector(uint64_t block, bool quantized = false);
 };
+
+std::tuple<double, double> gaussian(uint64_t u_0, uint64_t u_1, uint64_t u_2);
 
 }; // namespace sdfec_cmodel

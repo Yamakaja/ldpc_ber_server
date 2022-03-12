@@ -12,7 +12,10 @@ pybind11_add_module(sdfec_cmodel
     sdfec_cmodel.cpp
     sdfec_cmodel_bindings.cpp
     xoroshiro128plus.c
-    xoroshiro128plus_matrices.c)
+    xoroshiro128plus_matrices.c
+    ldpc_ber_tester.cpp
+    boxmuller.cpp
+    boxmuller_rom.cpp)
 
 target_link_directories(sdfec_cmodel PRIVATE "${SDFEC_CMODEL_DIR}")
 target_include_directories(sdfec_cmodel PRIVATE "${SDFEC_CMODEL_DIR}")
