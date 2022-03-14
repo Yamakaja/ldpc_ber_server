@@ -24,12 +24,17 @@ struct qc_table_contents {
 
 namespace sdfec_cmodel {
 
-ldpc_parameter_wrapper::~ldpc_parameter_wrapper() { xip_sd_fec_v1_1_destroy_ldpc_params(&params, nullptr, nullptr); }
+ldpc_parameter_wrapper::~ldpc_parameter_wrapper()
+{
+    xip_sd_fec_v1_1_destroy_ldpc_params(
+        &params, [](void*, int, const char* msg) { std::cerr << msg << std::endl; }, nullptr);
+}
 
 std::shared_ptr<ldpc_parameter_wrapper> gen_ldpc_params(char* src_file)
 {
     auto ldpc_params = std::make_shared<ldpc_parameter_wrapper>();
-    xip_uint status = xip_sd_fec_v1_1_gen_ldpc_params(src_file, &ldpc_params->params, nullptr, nullptr);
+    xip_uint status = xip_sd_fec_v1_1_gen_ldpc_params(
+        src_file, &ldpc_params->params, [](void*, int, const char* msg) { std::cerr << msg << std::endl; }, nullptr);
 
     ldpc_params->enc_OK = status & XIP_SD_FEC_v1_1_LDPC_CODE_ENC_ONLY;
     ldpc_params->dec_OK = status & XIP_SD_FEC_v1_1_LDPC_CODE_DEC_ONLY;
@@ -139,11 +144,7 @@ sdfec_core::sdfec_core(std::string name,
     // typedef void (*xip_msg_handler)(void* handle, int error, const char* msg);
 
     m_fec_handle = xip_sd_fec_v1_1_create(
-        &m_config,
-        [](void*, int, const char* msg) {
-            std::cerr << msg << std::endl;
-        },
-        nullptr);
+        &m_config, [](void*, int, const char* msg) { std::cerr << msg << std::endl; }, nullptr);
     if (!m_fec_handle)
         throw std::runtime_error("xip_sd_fec_v1_1_create(): Failed, returned nullptr.");
 }
