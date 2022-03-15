@@ -13,6 +13,7 @@ find_package(pybind11 REQUIRED)
 pybind11_add_module(sdfec_cmodel
     sdfec_cmodel.cpp
     sdfec_cmodel_bindings.cpp
+    sdfec_cmodel_shim.cpp
     xoroshiro128plus.c
     xoroshiro128plus_matrices.c
     ldpc_ber_tester.cpp
@@ -22,7 +23,10 @@ pybind11_add_module(sdfec_cmodel
 target_link_directories(sdfec_cmodel PRIVATE "${SDFEC_CMODEL_DIR}")
 target_include_directories(sdfec_cmodel PRIVATE "${SDFEC_CMODEL_DIR}")
 
-target_link_libraries(sdfec_cmodel PRIVATE Ip_sd_fec_v1_1_bitacc_cmodel fmt)
+target_link_libraries(sdfec_cmodel PRIVATE fmt dl m)
+# target_link_libraries(sdfec_cmodel PRIVATE Ip_sd_fec_v1_1_bitacc_cmodel fmt)
+
+target_compile_definitions(sdfec_cmodel PRIVATE "-DSDFEC_CMODEL_DIR=\"${SDFEC_CMODEL_DIR}\"")
 
 execute_process(COMMAND python3 -c "import site; print(site.getsitepackages()[0])"
     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -41,7 +45,7 @@ pybind11_add_module(sdfec_cmodel_exp
 target_link_directories(sdfec_cmodel_exp PRIVATE "${SDFEC_CMODEL_DIR}")
 target_include_directories(sdfec_cmodel_exp PRIVATE "${SDFEC_CMODEL_DIR}")
 
-target_link_libraries(sdfec_cmodel_exp PRIVATE dl fmt)
+target_link_libraries(sdfec_cmodel_exp PRIVATE dl fmt m)
 
 target_compile_definitions(sdfec_cmodel_exp PRIVATE "-DSDFEC_CMODEL_DIR=\"${SDFEC_CMODEL_DIR}\"")
 

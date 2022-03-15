@@ -1,5 +1,6 @@
 #include "ldpc_ber_tester.h"
 #include "sdfec_cmodel.h"
+#include "sdfec_cmodel_shim.h"
 #include "xoroshiro128plus.h"
 #include "boxmuller.h"
 
@@ -52,6 +53,8 @@ NUMPY_TO_XIP_ARR(bit);
 } // namespace
 PYBIND11_MODULE(sdfec_cmodel, m)
 {
+
+    sdfec_cmodel::shim::init();
 
     py::class_<ldpc_parameter_wrapper, std::shared_ptr<ldpc_parameter_wrapper>>(m, "sdfec_ldpc_params")
 #define RO_LDPC_ATTRIB(x) def_property_readonly(STR(x), [](ldpc_parameter_wrapper* self) { return self->params.x; })
