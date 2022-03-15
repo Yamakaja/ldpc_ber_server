@@ -29,3 +29,20 @@ execute_process(COMMAND python3 -c "import site; print(site.getsitepackages()[0]
     OUTPUT_VARIABLE PYTHON_SITE_PACKAGES)
 
 install(TARGETS sdfec_cmodel DESTINATION ${PYTHON_SITE_PACKAGES})
+
+
+###############################################################
+# Second shared library using dlopen to control dynamic linkage
+###############################################################
+pybind11_add_module(sdfec_cmodel_exp
+    sdfec_cmodel_exp_bindings.cpp
+    sdfec_cmodel_exp.cpp)
+
+target_link_directories(sdfec_cmodel_exp PRIVATE "${SDFEC_CMODEL_DIR}")
+target_include_directories(sdfec_cmodel_exp PRIVATE "${SDFEC_CMODEL_DIR}")
+
+target_link_libraries(sdfec_cmodel_exp PRIVATE dl fmt)
+
+target_compile_definitions(sdfec_cmodel_exp PRIVATE "-DSDFEC_CMODEL_DIR=\"${SDFEC_CMODEL_DIR}\"")
+
+# install(TARGETS sdfec_cmodel_exp DESTINATION ${PYTHON_SITE_PACKAGES})
