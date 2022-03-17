@@ -3,6 +3,8 @@
 import yaml
 import requests
 import time
+import sdfec_cmodel
+import numpy as np
 
 try:
     in_jupyter = get_ipython().__class__.__name__ == "ZMQInteractiveShell"
@@ -35,10 +37,97 @@ def parse_yaml(x):
     
     return data
 
+class SDFECTaskResult:
+    def __init__(self, task, data, max_iterations, snr_scales, cmodel):
+        self.task = task
+        self.data = data
+
+        self.task_id = data["task_id"]
+        self.success = data["success"]
+        self.snrs = data["snrs"]
+        self.bers = data["bers"]
+        self.speeds = data["speeds"]
+        self.finished_blocks = data["finished_blocks"]
+        self.bit_errors = data["bit_errors"]
+        self.avg_iterations = data["avg_iterations"]
+        self.failed_blocks = data["failed_blocks"]
+
+        self.fers = np.array(self.failed_blocks, dtype=float) / np.array(self.finished_blocks, dtype=float)
+
+        if cmodel != None and "last_failed" in data and isinstance(data["last_failed"], list):
+            failed_code_words = []
+            failed_info_words = []
+
+            ber_testers = [sdfec_cmodel.ldpc_ber_tester(i, cmodel) for i in range(6)]
+
+            last_failed = data["last_failed"]
+
+            N = sum([sum([len(v) for v in u]) for u in last_failed])
+            passed = 0
+            print(f"Processing {N} blocks in local cmodel:")
+
+            if in_jupyter:
+                fp = FloatProgress(min=0, max=1, bar_style="info", description=f"{N}")
+                display(fp)
+
+            done = 0
+
+            start_time = time.time()
+            for decoders,snr,snr_scale in zip(last_failed, self.snrs, snr_scales):
+                code_words = None
+                info_words = None
+
+                for i,decoder,ber in zip(range(6), decoders, ber_testers):
+                    ber.snr = snr
+                    ber.snr_scale = snr_scale
+
+
+                    for block_id in decoder:
+                        din, status, _, dout_hd = ber.simulate_block(block_id, max_iterations=max_iterations)
+                        if status.passed:
+                           print(f"Warning: Block passed! decoder: {i}, block_id: {block_id}, snr: {snr}, snr_scale: {snr_scale}, status: {status}")
+                           passed += 1
+                           done += 1
+                           continue
+
+                        if code_words is None:
+                            code_words = np.array(din)+snr_scale
+                            info_words = np.array(dout_hd).astype(int)
+                        else:
+                            code_words += np.array(din, copy=False)+snr_scale
+                            info_words += np.array(dout_hd, copy=False)
+
+                        done += 1
+
+                        if in_jupyter and (done & 0xF) == 0:
+                            duration = time.time() - start_time
+                            eta = int(round((N-done)/ done * duration))
+                            seconds = eta % 60
+                            eta //= 60
+                            minutes = eta % 60
+                            eta //= 60
+                            hours = eta
+                            fp.value = done / N
+                            fp.description = f"{hours:02}:{minutes:02}:{seconds:02}"
+
+                failed_code_words.append(code_words)
+                failed_info_words.append(info_words)
+
+            print(f"Passed: {passed} / {N}")
+            if in_jupyter:
+                fp.value = 1
+                fp.description = "Done"
+
+            self.failed_info_words = failed_info_words
+            self.failed_code_words = failed_code_words
+
 class SDFECTask:
-    def __init__(self, parent, task_id):
+    def __init__(self, parent, task_id, max_iterations, snr_scales, cmodel=None):
         self._parent = parent
         self.task_id = task_id
+        self.cmodel = cmodel
+        self.max_iterations = max_iterations
+        self.snr_scales = snr_scales
 
         self.update()
 
@@ -58,8 +147,22 @@ class SDFECTask:
         return self.data["state"]
 
     @property
+    def eta_str(self):
+        v = int(self.eta)
+
+        seconds = v % 60
+        v //= 60
+
+        minutes = v % 60
+        v //= 60
+
+        hours = v
+
+        return f"{hours:02}:{minutes:02}:{seconds:02}"
+
+    @property
     def result(self):
-        return self._parent._get(f"result/{self.task_id}")
+        return SDFECTaskResult(self, self._parent._get(f"result/{self.task_id}"), self.max_iterations, self.snr_scales, self.cmodel)
 
     def wait(self):
         while self.state in ["WAITING", "RUNNING"]:
@@ -74,7 +177,7 @@ class SDFECTask:
         if not in_jupyter:
             return self.wait()
 
-        fp = FloatProgress(min=0, max=1, bar_style="info", description="Running: ")
+        fp = FloatProgress(min=0, max=1, bar_style="info", description=f"{self.eta_str}")
 
         if self.state == "WAITING":
             print("Queued, waiting ...")
@@ -89,18 +192,21 @@ class SDFECTask:
             time.sleep(1)
             self.update()
             fp.value = self.progress
+            fp.description = f"{self.eta_str}"
 
         fp.value = 1
+        fp.description = "Done"
 
         if self.state == "DONE":
             return self.result
 
-        return None
+        raise RuntimeError(f"ABORT, task not done, but not running? data: {self.data}")
 
 class SDFECClient:
     def __init__(self, base_url):
         self.base_url = base_url
         self._tasks = {}
+        self.code_files = {}
 
     def _get(self, endpoint):
         req = requests.get(f"{self.base_url}/{endpoint}")
@@ -138,8 +244,15 @@ class SDFECClient:
     def tasks(self):
         return self._get("codes")
 
-    def add_code(self, code):
-        return self._put(f"code", code)["id"]
+    def add_code(self, code_spec):
+        """
+        Parse code specifications. Accepts Xilinx yml format
+        """
+
+        code = sdfec_cmodel.gen_ldpc_params(code_spec)
+        code_id = self._put(f"code", code.dict)["id"]
+        self.code_files[code_id] = code_spec
+        return code_id, code
 
     def simulate(self, code_id, snrs, snr_scales=[], term_time=60, term_errors=1000, max_iterations=8, collect_last_failed=0):
         if len(snr_scales) == 0:
@@ -155,7 +268,14 @@ class SDFECClient:
                 "collect_last_failed": collect_last_failed
                 }
 
-        return SDFECTask(self, self._put("task", req)["id"])
+
+        task_id = self._put("task", req)["id"]
+        if collect_last_failed > 0:
+            cmodel = sdfec_cmodel.sdfec_core(f"[SDFEC: task={task_id}]", self.code_files[code_id]);
+        else:
+            cmodel = None
+
+        return SDFECTask(self, task_id, max_iterations, snr_scales, cmodel)
 
     @property
     def status(self):
@@ -181,7 +301,7 @@ class SDFECClient:
             task = self._tasks[task_id]
             task.update()
             return task
-        
+
         return SDFECTask(self, task_id)
 
     def get_code(self, code_id):
