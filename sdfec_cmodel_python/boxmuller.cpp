@@ -176,7 +176,7 @@ std::tuple<fxpnt<5, 11>, fxpnt<5, 11>> bitexact_boxmuller(int64_t r_u0, int64_t 
     fxpnt<5, 0> w_f_p{ r_e.lzd() };
     DEBUG_BM(w_f_p);
 
-    fxpnt<6, 0> r_f_exp = (w_f_p - 6L).extend<6, 0>();
+    fxpnt<6, 0> r_f_exp = fxpnt<6, 0>((w_f_p.m_val & 0x1fL) - 6L);
     DEBUG_BM(r_f_exp);
 
     fxpnt<6, 0> r_f_exp_d = -r_f_exp;
