@@ -5,6 +5,10 @@ import requests
 import time
 import sdfec_cmodel
 import numpy as np
+import tempfile
+
+# Keep references to tempfiles so they are deleted on application shutdown
+_tempfiles = []
 
 try:
     in_jupyter = get_ipython().__class__.__name__ == "ZMQInteractiveShell"
@@ -15,27 +19,52 @@ if in_jupyter:
     from ipywidgets import FloatProgress
     from IPython.display import display
 
-def parse_yaml(x):
-    with open(x, "r") as f:
-        data = yaml.safe_load(f)
+def parse_QCldpc(file, row_normalization=True, normalization=0.75, no_packing=False, just_encode=False):
+    with open(file, "r") as f:
+        lines = f.read().split("\n")
 
-    def parse_array(v):
-        if isinstance(v, int):
-            return [v]
+    rows = int(lines[0])
+    cols = int(lines[1])
+    psize = int(lines[2])
 
-        if isinstance(v, str):
-            return [int(i) for i in v.strip().split(" ") if len(i) > 0]
+    HQC = np.array([[int(v) for v in row.split(" ") if len(v.strip()) > 0] for row in lines[3:3+rows] if len(row.strip()) > 0])
+    assert HQC.shape == (rows, cols)
+    assert lines[3+rows] == "EOF"
 
-        if isinstance(v, list) and isinstance(v[0], int):
-            return v
+    data = {}
 
-        raise RuntimeError("Failed to process table:", v)
+    assert cols > rows
+    assert psize > 0
 
-    data["sc_table"] = parse_array(data["sc_table"])
-    data["la_table"] = parse_array(data["la_table"])
-    data["qc_table"] = parse_array(data["qc_table"])
-    
-    return data
+    data["n"] = cols * psize
+    data["k"] = (cols-rows) * psize
+
+    data["p"] = psize
+    data["normalization"] = "row" if row_normalization else "none"
+
+    data["scale"] = round(normalization * 12)
+
+    data["no_packing"] = no_packing
+    data["encode"] = just_encode
+
+    circulants = []
+    R,C = np.meshgrid(np.arange(rows), np.arange(cols), indexing="ij")
+
+    R,C = R[HQC >= 0], C[HQC >= 0]
+
+    for row,col in zip(R.reshape(R.size), C.reshape(C.size)):
+        q = HQC[row, col]
+        circulants.append({"row": int(row), "col": int(col), "shift": int(q)})
+
+    data["sm_array"] = circulants
+
+    outfile = tempfile.NamedTemporaryFile(suffix=".yml")
+    outfile.write(yaml.safe_dump(data).encode("UTF-8"))
+    outfile.flush()
+    _tempfiles.append(outfile)
+
+    return outfile.name
+
 
 class SDFECTaskResult:
     def __init__(self, task, data, max_iterations, snr_scales, cmodel):
@@ -246,8 +275,11 @@ class SDFECClient:
 
     def add_code(self, code_spec):
         """
-        Parse code specifications. Accepts Xilinx yml format
+        Parse code specifications. Accepts Xilinx yml format (Before going through vivado) and QCldpc files.
         """
+
+        if code_spec.endswith(".QCldpc"):
+            code_spec = parse_QCldpc(code_spec)
 
         code = sdfec_cmodel.gen_ldpc_params(code_spec)
         code_id = self._put(f"code", code.dict)["id"]
