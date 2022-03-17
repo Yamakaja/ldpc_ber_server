@@ -19,7 +19,7 @@ if in_jupyter:
     from ipywidgets import FloatProgress
     from IPython.display import display
 
-def parse_QCldpc(file, row_normalization=True, normalization=0.75, no_packing=False, just_encode=False):
+def parse_QCldpc(file, row_normalization=True, normalization=0.75, no_packing=False, just_encode=False, no_final_parity=False):
     with open(file, "r") as f:
         lines = f.read().split("\n")
 
@@ -42,7 +42,7 @@ def parse_QCldpc(file, row_normalization=True, normalization=0.75, no_packing=Fa
     data["p"] = psize
     data["normalization"] = "row" if row_normalization else "none"
 
-    data["scale"] = round(normalization * 12)
+    data["scale"] = round(normalization * 16)
 
     data["no_packing"] = no_packing
     data["encode"] = just_encode
@@ -57,6 +57,7 @@ def parse_QCldpc(file, row_normalization=True, normalization=0.75, no_packing=Fa
         circulants.append({"row": int(row), "col": int(col), "shift": int(q)})
 
     data["sm_array"] = circulants
+    data["no_final_parity"] = no_final_parity
 
     outfile = tempfile.NamedTemporaryFile(suffix=".yml")
     outfile.write(yaml.safe_dump(data).encode("UTF-8"))
@@ -67,7 +68,7 @@ def parse_QCldpc(file, row_normalization=True, normalization=0.75, no_packing=Fa
 
 
 class SDFECTaskResult:
-    def __init__(self, task, data, max_iterations, snr_scales, cmodel):
+    def __init__(self, task, data, max_iterations, snr_scales, code, cmodel):
         self.task = task
         self.data = data
 
@@ -80,6 +81,9 @@ class SDFECTaskResult:
         self.bit_errors = data["bit_errors"]
         self.avg_iterations = data["avg_iterations"]
         self.failed_blocks = data["failed_blocks"]
+        self.code = code
+        self._code_rate = code.k / code.n
+        self.ebn0s = np.array(self.snrs) + 10 * np.log10(self._code_rate)
 
         self.fers = np.array(self.failed_blocks, dtype=float) / np.array(self.finished_blocks, dtype=float)
 
@@ -151,12 +155,13 @@ class SDFECTaskResult:
             self.failed_code_words = failed_code_words
 
 class SDFECTask:
-    def __init__(self, parent, task_id, max_iterations, snr_scales, cmodel=None):
+    def __init__(self, parent, task_id, max_iterations, snr_scales, code, cmodel=None):
         self._parent = parent
         self.task_id = task_id
         self.cmodel = cmodel
         self.max_iterations = max_iterations
         self.snr_scales = snr_scales
+        self.code = code
 
         self.update()
 
@@ -191,7 +196,7 @@ class SDFECTask:
 
     @property
     def result(self):
-        return SDFECTaskResult(self, self._parent._get(f"result/{self.task_id}"), self.max_iterations, self.snr_scales, self.cmodel)
+        return SDFECTaskResult(self, self._parent._get(f"result/{self.task_id}"), self.max_iterations, self.snr_scales, self.code, self.cmodel)
 
     def wait(self):
         while self.state in ["WAITING", "RUNNING"]:
@@ -236,6 +241,7 @@ class SDFECClient:
         self.base_url = base_url
         self._tasks = {}
         self.code_files = {}
+        self._codes = {}
 
     def _get(self, endpoint):
         req = requests.get(f"{self.base_url}/{endpoint}")
@@ -273,17 +279,18 @@ class SDFECClient:
     def tasks(self):
         return self._get("codes")
 
-    def add_code(self, code_spec):
+    def add_code(self, code_spec, row_normalization=True, normalization=0.75, no_packing=False, just_encode=False, no_final_parity=False):
         """
         Parse code specifications. Accepts Xilinx yml format (Before going through vivado) and QCldpc files.
         """
 
         if code_spec.endswith(".QCldpc"):
-            code_spec = parse_QCldpc(code_spec)
+            code_spec = parse_QCldpc(code_spec, row_normalization, normalization, no_packing, just_encode, no_final_parity)
 
         code = sdfec_cmodel.gen_ldpc_params(code_spec)
         code_id = self._put(f"code", code.dict)["id"]
         self.code_files[code_id] = code_spec
+        self._codes[code_id] = code
         return code_id, code
 
     def simulate(self, code_id, snrs, snr_scales=[], term_time=60, term_errors=1000, max_iterations=8, collect_last_failed=0):
@@ -307,7 +314,7 @@ class SDFECClient:
         else:
             cmodel = None
 
-        return SDFECTask(self, task_id, max_iterations, snr_scales, cmodel)
+        return SDFECTask(self, task_id, max_iterations, snr_scales, self._codes[code_id], cmodel)
 
     @property
     def status(self):
