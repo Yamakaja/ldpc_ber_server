@@ -1,8 +1,8 @@
+#include "boxmuller.h"
 #include "ldpc_ber_tester.h"
 #include "sdfec_cmodel.h"
 #include "sdfec_cmodel_shim.h"
 #include "xoroshiro128plus.h"
-#include "boxmuller.h"
 
 #include <pybind11/buffer_info.h>
 #include <pybind11/numpy.h>
@@ -71,6 +71,8 @@ PYBIND11_MODULE(sdfec_cmodel, m)
         .RO_LDPC_ATTRIB(no_final_parity)
         .RO_LDPC_ATTRIB(max_schedule)
 #undef RO_LDPC_ATTRIB
+        .def_property_readonly("dec_OK", [](std::shared_ptr<ldpc_parameter_wrapper> self) { return self->dec_OK; })
+        .def_property_readonly("enc_OK", [](std::shared_ptr<ldpc_parameter_wrapper> self) { return self->enc_OK; })
         .def_property_readonly("sc_table", &sdfec_cmodel::get_sc_table)
         .def_property_readonly("la_table", &sdfec_cmodel::get_la_table)
         .def_property_readonly("qc_table", &sdfec_cmodel::get_qc_table)
@@ -80,7 +82,7 @@ PYBIND11_MODULE(sdfec_cmodel, m)
                                                    "dec_OK"_a = self->dec_OK,
                                                    "n"_a = self->params.n,
                                                    "k"_a = self->params.k,
-                                                   "psize"_a = self->params.psize,
+                                                   "p"_a = self->params.psize,
                                                    "nlayers"_a = self->params.nlayers,
                                                    "nqc"_a = self->params.nqc,
                                                    "nmqc"_a = self->params.nmqc,
@@ -285,7 +287,10 @@ PYBIND11_MODULE(sdfec_cmodel, m)
         .def_property_readonly("din_beats", &ldpc_ber_tester::get_din_beats)
         .def("get_rnd_vector", &ldpc_ber_tester::get_rnd_vector, "block"_a, "idx"_a)
         .def("get_gaussian_vector", &ldpc_ber_tester::get_gaussian_vector, "block"_a, "quantized"_a = false)
-        .def("get_bitexact_gaussian_vector", &ldpc_ber_tester::get_bitexact_gaussian_vector, "block"_a, "quantized"_a = false)
+        .def("get_bitexact_gaussian_vector",
+             &ldpc_ber_tester::get_bitexact_gaussian_vector,
+             "block"_a,
+             "quantized"_a = false)
         .def("simulate_block",
              &ldpc_ber_tester::simulate_block,
              "block"_a,

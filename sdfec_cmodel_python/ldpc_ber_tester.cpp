@@ -99,7 +99,7 @@ void ldpc_ber_tester::skip_to_block(ssize_t id)
     for (size_t i = 0; i < m_xoros.size(); i++) {
         xoroshiro128plus_init(&m_xoros[i], BASE_SEED);
 
-        for (size_t j = 0; j < i; j++)
+        for (size_t j = 0; j < i+m_seed_base*12; j++)
             xoroshiro128plus_jump(&m_xoros[i]);
     }
 
@@ -219,7 +219,7 @@ double ldpc_ber_tester::quantize_llr(double x)
     // x.2 + x.2
     q += m_offset_q.m_val / 4.0;
 
-    return std::max(std::min(q, 7.5), -7.5);
+    return std::max(std::min(q, 7.75), -7.75);
 }
 
 double ldpc_ber_tester::remap_llr(fxpnt<5,11> x)
@@ -227,7 +227,7 @@ double ldpc_ber_tester::remap_llr(fxpnt<5,11> x)
     fxpnt<13, 19> f = x * m_factor_q;
     double v = static_cast<double>(f.round<13, 2>() + m_offset_q.extend<13,2>());
 
-    return std::max(std::min(v, 7.5), -7.5);
+    return std::max(std::min(v, 7.75), -7.75);
 }
 
 std::tuple<std::shared_ptr<xip_array_real>,

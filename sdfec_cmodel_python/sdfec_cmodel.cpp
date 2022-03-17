@@ -38,6 +38,10 @@ std::shared_ptr<ldpc_parameter_wrapper> gen_ldpc_params(char* src_file)
 
     ldpc_params->enc_OK = status & XIP_SD_FEC_v1_1_LDPC_CODE_ENC_ONLY;
     ldpc_params->dec_OK = status & XIP_SD_FEC_v1_1_LDPC_CODE_DEC_ONLY;
+
+    if (!status)
+        throw std::runtime_error("Failed to parse code definition!");
+
     return ldpc_params;
 }
 
