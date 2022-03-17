@@ -219,6 +219,7 @@ PYBIND11_MODULE(sdfec_cmodel, m)
         .def("add_ldpc_code", &sdfec_core::add_ldpc_code, "number"_a, "code"_a)
         .def("set_turbo_params", &sdfec_core::set_turbo_params, "alg"_a, "scale"_a)
         .def_property_readonly("num_loaded_ldpc_codes", &sdfec_core::get_num_loaded_ldpc_codes)
+        .def("get_code", &sdfec_core::get_code, "id"_a)
         .def(
             "process",
             [](std::shared_ptr<sdfec_core> self,
