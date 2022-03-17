@@ -145,10 +145,15 @@ sdfec_core::sdfec_core(std::string name,
     m_config.bypass = static_cast<xip_bit>(bypass);
     m_config.ip_quant_mode = static_cast<xip_uint>(quantization_mode);
 
-    // typedef void (*xip_msg_handler)(void* handle, int error, const char* msg);
+    auto msg_handler =
+        [](void*, int error, const char* msg) {
+            if (error)
+                std::cerr << msg << std::endl;
+            else
+                std::cout << msg << std::endl;
+        };
 
-    m_fec_handle = xip_sd_fec_v1_1_create(
-        &m_config, [](void*, int, const char* msg) { std::cerr << msg << std::endl; }, nullptr);
+    m_fec_handle = xip_sd_fec_v1_1_create(&m_config, msg_handler, nullptr);
     if (!m_fec_handle)
         throw std::runtime_error("xip_sd_fec_v1_1_create(): Failed, returned nullptr.");
 }
