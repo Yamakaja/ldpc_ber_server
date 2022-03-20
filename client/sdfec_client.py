@@ -74,16 +74,17 @@ class SDFECTaskResult:
 
         self.task_id = data["task_id"]
         self.success = data["success"]
-        self.snrs = data["snrs"]
-        self.bers = data["bers"]
-        self.speeds = data["speeds"]
-        self.finished_blocks = data["finished_blocks"]
-        self.bit_errors = data["bit_errors"]
-        self.avg_iterations = data["avg_iterations"]
-        self.failed_blocks = data["failed_blocks"]
+        self.snrs = np.array(data["snrs"])
+        self.bers = np.array(data["bers"])
+        self.speeds = np.array(data["speeds"])
+        self.finished_blocks = np.array(data["finished_blocks"])
+        self.bit_errors = np.array(data["bit_errors"])
+        self.avg_iterations = np.array(data["avg_iterations"])
+        self.failed_blocks = np.array(data["failed_blocks"])
         self.code = code
         self._code_rate = code.k / code.n
-        self.ebn0s = np.array(self.snrs) + 10 * np.log10(self._code_rate)
+        self.ebn0_offset = -10 * np.log10(2) - 10 * np.log10(code.k / code.n)
+        self.ebn0s = self.snrs + self.ebn0_offset
 
         self.fers = np.array(self.failed_blocks, dtype=float) / np.array(self.finished_blocks, dtype=float)
 
