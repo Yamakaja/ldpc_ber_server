@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>LDPC BER Server - Worker</title>
+    </head>
+    <body>
+        <h1>LDPC BER Server - Worker</h1>
+        <p>You have reached the <a href="https://github.com/Yamakaja/ldpc_ber_server">LDPC BER Server</a> at ${CONFIG_HOST}:${CONFIG_PORT)!</p>
+        <p>This is part of a larger project implementing a bit error rate tester (BERT) for the set of LDPC codes which can be decoded using the <a href="https://www.xilinx.com/products/intellectual-property/sd-fec.html">Xilinx SD-FEC Hardware Cores</a> that are available on the RFSoC devices.</p>
+
+        <p>If you're looking for the api, see <a href="//api/">/api/</a>.</p>
+
+        <h3>Links</h3>
+        <ul>
+            <li><a href="https://github.com/Yamakaja/ldpc_ber_server">GitHub: Yamakaja/ldpc_ber_server</a>: Software responsible for managing the hardware cores, this API, python clients.</li>
+            <li><a href="https://github.com/Yamakaja/ldpc_ber_tester">GitHub: Yamakaja/ldpc_ber_tester</a>: HDL core implementing the control logic for the decoder.</li>
+            <li><a href="https://github.com/Yamakaja/boxmuller">GitHub: Yamakaja/boxmuller</a>: Fixed-Point implementating of a Box-Muller transform</li>
+            <li><a href="https://github.com/Yamakaja/hdl/tree/sdfec/projects/ldpc_ber_tester/zcu111">GitHub: Yamakaja/hdl</a>: HDL parent project.</li>
+            <li><a href="https://github.com/Yamakaja/linux/blob/feature/sdfec/drivers/misc/axi-ldpc-ber-tester.c">GitHub: Yamakaja/linux: axi-ldpc-ber-tester.c</a>: Linux driver used facilitate hardware control from userspace.</li>
+        </ul>
+    </body>
+</html>
