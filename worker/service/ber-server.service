@@ -1,0 +1,11 @@
+[Unit]
+Description=LDPC BER server worker
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/ldpc_ber_server/worker
+ExecStart=/usr/bin/python3 main.py api_server
+
+[Install]
+WantedBy=multi-user.target
