@@ -91,28 +91,37 @@ std::vector<uint32_t> get_qc_table(const std::shared_ptr<ldpc_parameter_wrapper>
     std::vector<uint32_t> vec(self->params.nqc);
 
     for (uint32_t i = 0; i < self->params.nqc; i++) {
-        auto& v = contents[i];
+        auto v = contents[i];
 
         int v3 = 0;
 
         // Third value. Mapping not obvious ...
         switch (v.c) {
+        case 0x00000000:
+            v3 = 1;
+            break;
         case 0x00010000:
             v3 = 0;
             break;
         case 0x00010001:
             v3 = 2;
             break;
+        case 0x01010100:
+            v.b |= 0x80;
+            // Fallthrough
         case 0x00010100:
             v3 = 4;
             break;
+        case 0x01010101:
+            v.b |= 0x80;
+            // Fallthrough
         case 0x00010101:
             v3 = 6;
             break;
         default:
             throw std::runtime_error(fmt::format("Encountered unhandled value 0x{:08x} in "
-                                                 "third column of qc table output.",
-                                                 v.c));
+                                                 "third column of qc table[{}] output.",
+                                                 v.c, i));
         }
 
         vec[i] = v.a + (v.b << 8) + (v3 << 16);

@@ -153,12 +153,12 @@ def delete_task(task_id):
     you can do so using this method.
     """
     if task_id not in worker.tasks:
-        return ResponseCode(status=404)
+        return jsonify({"message": "Can't find requested task", "success": False}, code=404)
 
     del worker.tasks[task_id]
 
     worker.cancelled_tasks.append(task_id)
-    return Response(status=200)
+    return jsonify({"message": "Task cancelled", "success": True})
 
 @app.route("/api/result/<task_id>", methods=["DELETE"])
 def delete_result(task_id):
@@ -169,8 +169,9 @@ def delete_result(task_id):
     """
     if task_id in worker.results:
         del worker.results[task_id]
-        return Response(status=200)
-    return Response(status=404)
+        return jsonify({"message": "Result deleted", "success": True})
+
+    return jsonify({"message": "Can't find requested result", "success": False}, code=404)
 
 @app.route("/api/result/<task_id>", methods=["GET"])
 def get_result(task_id):
